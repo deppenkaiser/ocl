@@ -2,6 +2,7 @@
 
 #define CL_TARGET_OPENCL_VERSION 300
 #include <CL/opencl.h>
+#include <stdbool.h>
 
 #define OCL_MAX_PLATFORMS 3
 #define OCL_MAX_DEVICES 3
@@ -37,6 +38,9 @@ typedef struct ocl_core
 {
 	struct ocl_platforms platforms;
 	struct ocl_devices devices;
+    cl_context context;
+	cl_command_queue queue;
+    cl_program program;
 } *ocl_core_t;
 
-void ocl_initialize(ocl_core_t ocl);
+bool ocl_initialize(ocl_core_t ocl);
