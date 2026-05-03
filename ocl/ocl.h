@@ -20,9 +20,16 @@ typedef struct ocl_platforms
 	cl_uint count;
 } *ocl_platforms_t;
 
+typedef struct ocl_device_info
+{
+	char name[256];
+	char version[256];
+} *ocl_device_info_t;
+
 typedef struct ocl_devices
 {
     cl_device_id ids[OCL_MAX_DEVICES];
+	struct ocl_device_info info[OCL_MAX_DEVICES];
 	cl_uint count;
 } *ocl_devices_t;
 
@@ -31,3 +38,5 @@ typedef struct ocl_core
 	struct ocl_platforms platforms;
 	struct ocl_devices devices;
 } *ocl_core_t;
+
+void ocl_initialize();
