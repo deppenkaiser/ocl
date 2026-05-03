@@ -39,4 +39,4 @@ typedef struct ocl_core
 	struct ocl_devices devices;
 } *ocl_core_t;
 
-void ocl_initialize();
+void ocl_initialize(ocl_core_t ocl);
