@@ -1,6 +1,7 @@
 #include "ocl/ocl.h"
 #include <CL/cl.h>
 #include <logging/logging.h>
+#include <stdio.h>
 
 bool ocl_initialize(ocl_core_t ocl)
 {
@@ -55,5 +56,33 @@ bool ocl_initialize(ocl_core_t ocl)
 		}
 	}
 	
+	return is_ok;
+}
+
+bool ocl_compile(ocl_core_t ocl, ocl_program_t program)
+{
+	bool is_ok = false;
+    cl_int error = CL_SUCCESS;
+
+	program->binary = clCreateProgramWithSource(ocl->context, 1, (const char**) &program->source, NULL, &error);
+	if (error == CL_SUCCESS)
+	{
+		error = clBuildProgram(program->binary, 1, ocl->devices.ids, NULL, NULL, NULL);
+		if (error == CL_SUCCESS)
+		{
+			is_ok = true;
+		}
+		else
+		{
+			fprintf(stderr, "Fehler: Programm konnte nicht kompiliert werden (%d)\n", error);
+			size_t log_size;
+			clGetProgramBuildInfo(program->binary, ocl->devices.ids[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+			char* log = malloc(log_size);
+			clGetProgramBuildInfo(program->binary, ocl->devices.ids[0], CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
+			fprintf(stderr, "Build-Log:\n%s\n", log);
+			free(log);
+		}
+	}
+
 	return is_ok;
 }

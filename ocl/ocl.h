@@ -51,3 +51,4 @@ typedef struct ocl_program
 } *ocl_program_t;
 
 bool ocl_initialize(ocl_core_t ocl);
+bool ocl_compile(ocl_core_t ocl, ocl_program_t program);
