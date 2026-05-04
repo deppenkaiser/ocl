@@ -8,7 +8,7 @@ bool ocl_initialize(ocl_core_t ocl)
 
 	if (clGetPlatformIDs(OCL_MAX_PLATFORMS, ocl->platforms.ids, &ocl->platforms.count) == CL_SUCCESS)
 	{
-		logging_log_message("Platforms found:");
+		logging_log_message("OpenCL platforms found:");
 
 		for (size_t i = 0; i < ocl->platforms.count; ++i)
 		{
@@ -30,9 +30,9 @@ bool ocl_initialize(ocl_core_t ocl)
 
 		if (clGetDeviceIDs(ocl->platforms.ids[0], CL_DEVICE_TYPE_GPU, 1, ocl->devices.ids, &ocl->devices.count) == CL_SUCCESS)
 		{
-			cl_int error = 0;
+			cl_int error = CL_SUCCESS;
 
-			logging_log_message("Devices found:");
+			logging_log_message("OpenCL devices found:");
 
 			for (size_t i = 0; i < ocl->devices.count; ++i)
 			{
