@@ -35,14 +35,6 @@ typedef struct ocl_devices
 	cl_uint count;
 } *ocl_devices_t;
 
-typedef struct ocl_core
-{
-	struct ocl_platforms platforms;
-	struct ocl_devices devices;
-    cl_context context;
-	cl_command_queue queue;
-} *ocl_core_t;
-
 typedef struct ocl_program
 {
 	cl_program binary;
@@ -50,5 +42,15 @@ typedef struct ocl_program
 	cl_kernel kernels[OCL_MAX_KERNELS];
 } *ocl_program_t;
 
+typedef struct ocl_core
+{
+	struct ocl_platforms platforms;
+	struct ocl_devices devices;
+	struct ocl_program program;
+    cl_context context;
+	cl_command_queue queue;
+} *ocl_core_t;
+
 bool ocl_initialize(ocl_core_t ocl);
-bool ocl_compile(ocl_core_t ocl, ocl_program_t program);
+bool ocl_compile(ocl_core_t ocl);
+void ocl_deinitialize(ocl_core_t ocl);

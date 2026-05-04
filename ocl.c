@@ -59,15 +59,15 @@ bool ocl_initialize(ocl_core_t ocl)
 	return is_ok;
 }
 
-bool ocl_compile(ocl_core_t ocl, ocl_program_t program)
+bool ocl_compile(ocl_core_t ocl)
 {
 	bool is_ok = false;
     cl_int error = CL_SUCCESS;
 
-	program->binary = clCreateProgramWithSource(ocl->context, 1, (const char**) &program->source, NULL, &error);
+	ocl->program.binary = clCreateProgramWithSource(ocl->context, 1, (const char**) &ocl->program.source, NULL, &error);
 	if (error == CL_SUCCESS)
 	{
-		error = clBuildProgram(program->binary, 1, ocl->devices.ids, NULL, NULL, NULL);
+		error = clBuildProgram(ocl->program.binary, 1, ocl->devices.ids, NULL, NULL, NULL);
 		if (error == CL_SUCCESS)
 		{
 			is_ok = true;
@@ -76,13 +76,43 @@ bool ocl_compile(ocl_core_t ocl, ocl_program_t program)
 		{
 			fprintf(stderr, "Fehler: Programm konnte nicht kompiliert werden (%d)\n", error);
 			size_t log_size;
-			clGetProgramBuildInfo(program->binary, ocl->devices.ids[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+			clGetProgramBuildInfo(ocl->program.binary, ocl->devices.ids[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
 			char* log = malloc(log_size);
-			clGetProgramBuildInfo(program->binary, ocl->devices.ids[0], CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
+			clGetProgramBuildInfo(ocl->program.binary, ocl->devices.ids[0], CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
 			fprintf(stderr, "Build-Log:\n%s\n", log);
 			free(log);
 		}
 	}
 
 	return is_ok;
+}
+
+void ocl_deinitialize(ocl_core_t ocl)
+{
+	for (size_t i = 0; i < OCL_MAX_KERNELS; ++i)
+	{
+		if (ocl->program.kernels[i] != NULL)
+		{
+			clReleaseKernel(ocl->program.kernels[i]);
+			ocl->program.kernels[i] = NULL;
+		}
+	}
+
+	if (ocl->program.binary != NULL)
+	{
+		clReleaseProgram(ocl->program.binary);
+		ocl->program.binary = NULL;
+	}
+
+	if (ocl->queue != NULL)
+	{
+		clReleaseCommandQueue(ocl->queue);
+		ocl->queue = NULL;
+	}
+
+	if (ocl->context != NULL)
+	{
+		clReleaseContext(ocl->context);
+		ocl->context = NULL;
+	}
 }
