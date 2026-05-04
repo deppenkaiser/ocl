@@ -71,6 +71,7 @@ bool ocl_compile(ocl_core_t ocl)
 		if (error == CL_SUCCESS)
 		{
 			is_ok = true;
+			logging_log_message("OpenCL is initialized.");
 		}
 		else
 		{
@@ -115,4 +116,6 @@ void ocl_deinitialize(ocl_core_t ocl)
 		clReleaseContext(ocl->context);
 		ocl->context = NULL;
 	}
+
+	logging_log_message("OpenCL is deinitialized.");
 }
