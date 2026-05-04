@@ -6,6 +6,7 @@
 
 #define OCL_MAX_PLATFORMS 3
 #define OCL_MAX_DEVICES 3
+#define OCL_MAX_KERNELS 3
 
 typedef struct ocl_platform_info
 {
@@ -46,6 +47,7 @@ typedef struct ocl_program
 {
 	cl_program binary;
 	char* source;
+	cl_kernel kernels[OCL_MAX_KERNELS];
 } *ocl_program_t;
 
 bool ocl_initialize(ocl_core_t ocl);
