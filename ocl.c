@@ -162,18 +162,18 @@ const char* ocl_get_source_subtract_images()
 	"}\n";
 }
 
-void ocl_set_parameter_subtract_images(cl_kernel kernel, cl_mem image_a, cl_mem image_b, cl_mem image_result, cl_uint width, cl_uint height, cl_uint pitch_bytes)
+void ocl_set_parameter_subtract_images(cl_kernel kernel, ocl_image_operation_t parameter)
 {
 	cl_int error = CL_SUCCESS;
 	int min_val = 0;
 	int max_val = 255;
 
-	error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &image_a);
-	error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &image_b);
-	error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &image_result);
-	error |= clSetKernelArg(kernel, 3, sizeof(int), &width);
-	error |= clSetKernelArg(kernel, 4, sizeof(int), &height);
-	error |= clSetKernelArg(kernel, 5, sizeof(int), &pitch_bytes);
+	error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &parameter->a);
+	error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &parameter->b);
+	error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &parameter->result);
+	error |= clSetKernelArg(kernel, 3, sizeof(int), &parameter->width);
+	error |= clSetKernelArg(kernel, 4, sizeof(int), &parameter->height);
+	error |= clSetKernelArg(kernel, 5, sizeof(int), &parameter->pitch_bytes);
 	error |= clSetKernelArg(kernel, 6, sizeof(int), &min_val);
 	error |= clSetKernelArg(kernel, 7, sizeof(int), &max_val);
 

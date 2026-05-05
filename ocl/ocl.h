@@ -51,10 +51,21 @@ typedef struct ocl_core
 	cl_command_queue queue;
 } *ocl_core_t;
 
+typedef struct ocl_image_operation
+{
+	cl_mem a;
+	cl_mem b;
+	cl_mem result;
+	cl_uint width;
+	cl_uint height;
+	cl_uint pitch_bytes;
+	size_t size_bytes;
+} *ocl_image_operation_t;
+
 bool ocl_initialize(ocl_core_t ocl);
 bool ocl_compile(ocl_core_t ocl);
 void ocl_deinitialize(ocl_core_t ocl);
 cl_mem ocl_create_input_buffer_from_memory(ocl_core_t ocl, uint8_t* data, size_t size_bytes);
 cl_mem ocl_create_output_buffer(ocl_core_t ocl, size_t size_bytes);
 const char* ocl_get_source_subtract_images();
-void ocl_set_parameter_subtract_images(cl_kernel kernel, cl_mem image_a, cl_mem image_b, cl_mem image_result, cl_uint width, cl_uint height, cl_uint pitch_bytes);
+void ocl_set_parameter_subtract_images(cl_kernel kernel, ocl_image_operation_t parameter);
