@@ -119,3 +119,25 @@ void ocl_deinitialize(ocl_core_t ocl)
 
 	logging_log_message("OpenCL is deinitialized.");
 }
+
+cl_mem ocl_create_input_buffer_from_memory(ocl_core_t ocl, uint8_t* data, size_t size_bytes)
+{
+	cl_int error = CL_SUCCESS;
+	cl_mem buffer = clCreateBuffer(ocl->context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, size_bytes, data, &error);
+	if (error != CL_SUCCESS)
+	{
+		logging_log_message("Error: Buffer creation failed!");
+	}
+	return buffer;
+}
+
+cl_mem ocl_create_output_buffer(ocl_core_t ocl, size_t size_bytes)
+{
+	cl_int error = CL_SUCCESS;
+	cl_mem buffer = clCreateBuffer(ocl->context, CL_MEM_WRITE_ONLY, size_bytes, NULL, &error);
+	if (error != CL_SUCCESS)
+	{
+		logging_log_message("Error: Buffer creation failed!");
+	}
+	return buffer;
+}
