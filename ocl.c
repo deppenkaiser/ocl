@@ -64,7 +64,7 @@ bool ocl_compile(ocl_core_t ocl)
 	bool is_ok = false;
     cl_int error = CL_SUCCESS;
 
-	ocl->program.binary = clCreateProgramWithSource(ocl->context, 1, (const char**) &ocl->program.source, NULL, &error);
+	ocl->program.binary = clCreateProgramWithSource(ocl->context, 1, &ocl->program.source, NULL, &error);
 	if (error == CL_SUCCESS)
 	{
 		error = clBuildProgram(ocl->program.binary, 1, ocl->devices.ids, NULL, NULL, NULL);
@@ -140,4 +140,24 @@ cl_mem ocl_create_output_buffer(ocl_core_t ocl, size_t size_bytes)
 		logging_log_message("Error: Buffer creation failed!");
 	}
 	return buffer;
+}
+
+const char* ocl_get_source_subtract_images()
+{
+	return
+	"__kernel void subtract_images(__global unsigned char* img_a, __global unsigned char* img_b,\n"
+	"                              __global unsigned char* result, int width, int height, int stride, int min_val, int max_val)\n"
+	"{\n"
+	"	int x = get_global_id(0);\n"
+	"	int y = get_global_id(1);\n"
+	"	\n"
+	"	if (x < width && y < height)\n"
+	"	{\n"
+	"      	int idx = y * stride + x;\n"
+	"      	int diff = (int)img_a[idx] - (int)img_b[idx];\n"
+	"      	if (diff < min_val) {diff = min_val;}\n"
+	"      	if (diff > max_val) {diff = max_val;}\n"
+	"       result[idx] = (unsigned char)diff;\n"
+	"	}\n"
+	"}\n";
 }

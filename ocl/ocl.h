@@ -38,7 +38,7 @@ typedef struct ocl_devices
 typedef struct ocl_program
 {
 	cl_program binary;
-	char* source;
+	const char* source;
 	cl_kernel kernels[OCL_MAX_KERNELS];
 } *ocl_program_t;
 
@@ -56,3 +56,4 @@ bool ocl_compile(ocl_core_t ocl);
 void ocl_deinitialize(ocl_core_t ocl);
 cl_mem ocl_create_input_buffer_from_memory(ocl_core_t ocl, uint8_t* data, size_t size_bytes);
 cl_mem ocl_create_output_buffer(ocl_core_t ocl, size_t size_bytes);
+const char* ocl_get_source_subtract_images();
