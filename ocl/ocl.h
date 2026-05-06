@@ -53,9 +53,7 @@ typedef struct ocl_core
 
 typedef struct ocl_image_operation
 {
-	cl_mem a;
-	cl_mem b;
-	cl_mem result;
+	cl_mem image;
 	cl_uint width;
 	cl_uint height;
 	cl_uint pitch_bytes;
@@ -68,4 +66,5 @@ void ocl_deinitialize(ocl_core_t ocl);
 cl_mem ocl_create_input_buffer_from_memory(ocl_core_t ocl, uint8_t* data, size_t size_bytes);
 cl_mem ocl_create_output_buffer(ocl_core_t ocl, size_t size_bytes);
 const char* ocl_get_source_subtract_images();
-void ocl_set_parameter_subtract_images(cl_kernel kernel, ocl_image_operation_t parameter);
+void ocl_set_parameter_subtract_images(cl_kernel kernel, ocl_image_operation_t parameter, cl_mem b, cl_mem result);
+void ocl_set_parameter_histogram(cl_kernel kernel, ocl_image_operation_t parameter, cl_mem result);

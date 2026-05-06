@@ -150,7 +150,7 @@ const char* ocl_get_source_subtract_images()
 	"{\n"
 	"	int x = get_global_id(0);\n"
 	"	int y = get_global_id(1);\n"
-	"	\n"
+	"\n"
 	"	if (x < width && y < height)\n"
 	"	{\n"
 	"      	int idx = y * stride + x;\n"
@@ -162,15 +162,15 @@ const char* ocl_get_source_subtract_images()
 	"}\n";
 }
 
-void ocl_set_parameter_subtract_images(cl_kernel kernel, ocl_image_operation_t parameter)
+void ocl_set_parameter_subtract_images(cl_kernel kernel, ocl_image_operation_t parameter, cl_mem b, cl_mem result)
 {
 	cl_int error = CL_SUCCESS;
 	int min_val = 0;
 	int max_val = 255;
 
-	error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &parameter->a);
-	error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &parameter->b);
-	error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &parameter->result);
+	error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &parameter->image);
+	error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &b);
+	error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &result);
 	error |= clSetKernelArg(kernel, 3, sizeof(int), &parameter->width);
 	error |= clSetKernelArg(kernel, 4, sizeof(int), &parameter->height);
 	error |= clSetKernelArg(kernel, 5, sizeof(int), &parameter->pitch_bytes);
@@ -181,4 +181,38 @@ void ocl_set_parameter_subtract_images(cl_kernel kernel, ocl_image_operation_t p
 	{
 		logging_log_message("Error: Setting Arguments failed!");
 	}
+}
+
+const char* ocl_get_source_histogram()
+{
+    return
+    "__kernel void histogram(__global unsigned char* image, __global unsigned int* hist,\n"
+    "                        int width, int height, int stride)\n"
+    "{\n"
+    "    int x = get_global_id(0);\n"
+    "    int y = get_global_id(1);\n"
+    "\n"
+    "    if (x < width && y < height)\n"
+    "    {\n"
+    "        int idx = y * stride + x;\n"
+    "        unsigned char pixel = image[idx];\n"
+    "        atomic_inc(&hist[pixel]);\n"
+    "    }\n"
+    "}\n";
+}
+
+void ocl_set_parameter_histogram(cl_kernel kernel, ocl_image_operation_t parameter, cl_mem result)
+{
+    cl_int error = CL_SUCCESS;
+
+    error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &parameter->image);
+    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &result);
+    error |= clSetKernelArg(kernel, 2, sizeof(int), &parameter->width);
+    error |= clSetKernelArg(kernel, 3, sizeof(int), &parameter->height);
+    error |= clSetKernelArg(kernel, 4, sizeof(int), &parameter->pitch_bytes);
+
+    if (error != CL_SUCCESS)
+    {
+        logging_log_message("Error: Setting histogram arguments failed!");
+    }
 }
