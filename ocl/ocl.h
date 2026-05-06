@@ -68,3 +68,5 @@ cl_mem ocl_create_output_buffer(ocl_core_t ocl, size_t size_bytes);
 const char* ocl_get_source_subtract_images();
 void ocl_set_parameter_subtract_images(cl_kernel kernel, ocl_image_operation_t parameter, cl_mem b, cl_mem result);
 void ocl_set_parameter_histogram(cl_kernel kernel, ocl_image_operation_t parameter, cl_mem result);
+const char* ocl_get_sources();
+bool ocl_load_kernels(ocl_core_t ocl);

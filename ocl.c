@@ -2,6 +2,14 @@
 #include <CL/cl.h>
 #include <logging/logging.h>
 #include <stdio.h>
+#include <api/api.h>
+
+private const char* _ocl_kernel_names_t[] =
+{
+	"subtract_images",
+	"histogram",
+	NULL
+};
 
 bool ocl_initialize(ocl_core_t ocl)
 {
@@ -215,4 +223,58 @@ void ocl_set_parameter_histogram(cl_kernel kernel, ocl_image_operation_t paramet
     {
         logging_log_message("Error: Setting histogram arguments failed!");
     }
+}
+
+const char* ocl_get_sources()
+{
+	return
+	"__kernel void subtract_images(__global unsigned char* img_a, __global unsigned char* img_b,\n"
+	"                              __global unsigned char* result, int width, int height, int stride, int min_val, int max_val)\n"
+	"{\n"
+	"	int x = get_global_id(0);\n"
+	"	int y = get_global_id(1);\n"
+	"\n"
+	"	if (x < width && y < height)\n"
+	"	{\n"
+	"      	int idx = y * stride + x;\n"
+	"      	int diff = (int)img_a[idx] - (int)img_b[idx];\n"
+	"      	if (diff < min_val) {diff = min_val;}\n"
+	"      	if (diff > max_val) {diff = max_val;}\n"
+	"       result[idx] = (unsigned char)diff;\n"
+	"	}\n"
+	"}\n"
+	"\n"
+	"__kernel void histogram(__global unsigned char* image, __global unsigned int* hist,\n"
+    "                        int width, int height, int stride)\n"
+    "{\n"
+    "    int x = get_global_id(0);\n"
+    "    int y = get_global_id(1);\n"
+    "\n"
+    "    if (x < width && y < height)\n"
+    "    {\n"
+    "        int idx = y * stride + x;\n"
+    "        unsigned char pixel = image[idx];\n"
+    "        atomic_inc(&hist[pixel]);\n"
+    "    }\n"
+    "}\n";
+}
+
+bool ocl_load_kernels(ocl_core_t ocl)
+{
+	bool is_ok = true;
+	for (size_t i = 0; i < OCL_MAX_KERNELS; ++i)
+	{
+		if (_ocl_kernel_names_t[i] != NULL)
+		{
+			cl_int error = CL_SUCCESS;
+			ocl->program.kernels[i] = clCreateKernel(ocl->program.binary, _ocl_kernel_names_t[i], &error);
+			if (error == CL_SUCCESS)
+			{
+				continue;
+			}
+			is_ok = false;
+			break;
+		}
+	}
+	return is_ok;
 }
