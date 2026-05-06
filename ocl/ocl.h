@@ -60,6 +60,8 @@ typedef struct ocl_image_operation
 	size_t size_bytes;
 } *ocl_image_operation_t;
 
+typedef cl_uint ocl_histogram_t[256];
+
 bool ocl_initialize(ocl_core_t ocl);
 bool ocl_compile(ocl_core_t ocl);
 void ocl_deinitialize(ocl_core_t ocl);
