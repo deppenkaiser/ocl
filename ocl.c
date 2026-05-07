@@ -225,6 +225,71 @@ void ocl_set_parameter_histogram(cl_kernel kernel, ocl_image_operation_t paramet
     }
 }
 
+const char* ocl_get_source_brightest_spot()
+{
+    return
+	"float2 subpixel_refine(__global const unsigned char* img, int w, int h, int stride,\n"
+	"                       int px, int py, int radius)\n"
+	"{\n"
+	"    float sx=0, sy=0, sw=0;\n"
+	"    int xs=max(px-radius,0), ys=max(py-radius,0);\n"
+	"    int xe=min(px+radius,w-1), ye=min(py+radius,h-1);\n"
+	"    for(int y=ys; y<=ye; y++)\n"
+	"    {\n"
+	"        for(int x=xs; x<=xe; x++)\n"
+	"        {\n"
+	"            float wt=(float)img[y*stride+x];\n"
+	"            sx+=wt*x; sy+=wt*y; sw+=wt;\n"
+	"        }\n"
+	"    }\n"
+	"    return (sw>0) ? (float2)(sx/sw, sy/sw) : (float2)((float)px, (float)py);\n"
+	"}\n"
+	"\n"
+	"__kernel void brightest_spot(__global const unsigned char* img,\n"
+	"                             __global float* res,\n"
+	"                             int w, int h, int stride,\n"
+	"                             int cx, int cy, int rw, int rh,\n"
+	"                             int sub_r)\n"
+	"{\n"
+	"    int hs=rw/2;\n"
+	"    int hh=rh/2;\n"
+	"    int xs=cx-hs, ys=cy-hh, xe=cx-hs+rw, ye=cy-hh+rh;\n"
+	"    if(rw<=0||rh<=0) { xs=0; ys=0; xe=w; ye=h; }\n"
+	"    xs=clamp(xs,0,w); ys=clamp(ys,0,h);\n"
+	"    xe=clamp(xe,0,w); ye=clamp(ye,0,h);\n"
+	"\n"
+	"    int bx=xs, by=ys;\n"
+	"    unsigned char bv=0;\n"
+	"    for(int y=ys; y<ye; y++)\n"
+	"        for(int x=xs; x<xe; x++)\n"
+	"            if(img[y*stride+x] > bv) { bv=img[y*stride+x]; bx=x; by=y; }\n"
+	"\n"
+	"    float2 sp = subpixel_refine(img, w, h, stride, bx, by, sub_r);\n"
+	"    res[0]=sp.x; res[1]=sp.y; res[2]=(float)bv;\n"
+	"}\n";
+}
+
+void ocl_set_parameter_brightest_spot(cl_kernel kernel, ocl_image_operation_t parameter, int cx, int cy, int rw, int rh, int sub_r, cl_mem result)
+{
+    cl_int error = CL_SUCCESS;
+
+    error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &parameter->image);
+    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &result);
+    error |= clSetKernelArg(kernel, 2, sizeof(int), &parameter->width);
+    error |= clSetKernelArg(kernel, 3, sizeof(int), &parameter->height);
+    error |= clSetKernelArg(kernel, 4, sizeof(int), &parameter->pitch_bytes);
+    error |= clSetKernelArg(kernel, 5, sizeof(int), &cx);
+    error |= clSetKernelArg(kernel, 6, sizeof(int), &cy);
+    error |= clSetKernelArg(kernel, 7, sizeof(int), &rw);
+    error |= clSetKernelArg(kernel, 8, sizeof(int), &rh);
+    error |= clSetKernelArg(kernel, 9, sizeof(int), &sub_r);
+
+    if (error != CL_SUCCESS)
+    {
+        logging_log_message("Error: Setting brightest_spot arguments failed!");
+    }
+}
+
 const char* ocl_get_sources()
 {
 	return
@@ -256,7 +321,47 @@ const char* ocl_get_sources()
     "        unsigned char pixel = image[idx];\n"
     "        atomic_inc(&hist[pixel]);\n"
     "    }\n"
-    "}\n";
+    "}\n"
+	"\n"
+	"float2 subpixel_refine(__global const unsigned char* img, int w, int h, int stride,\n"
+	"                       int px, int py, int radius)\n"
+	"{\n"
+	"    float sx=0, sy=0, sw=0;\n"
+	"    int xs=max(px-radius,0), ys=max(py-radius,0);\n"
+	"    int xe=min(px+radius,w-1), ye=min(py+radius,h-1);\n"
+	"    for(int y=ys; y<=ye; y++)\n"
+	"    {\n"
+	"        for(int x=xs; x<=xe; x++)\n"
+	"        {\n"
+	"            float wt=(float)img[y*stride+x];\n"
+	"            sx+=wt*x; sy+=wt*y; sw+=wt;\n"
+	"        }\n"
+	"    }\n"
+	"    return (sw>0) ? (float2)(sx/sw, sy/sw) : (float2)((float)px, (float)py);\n"
+	"}\n"
+	"\n"
+	"__kernel void brightest_spot(__global const unsigned char* img,\n"
+	"                             __global float* res,\n"
+	"                             int w, int h, int stride,\n"
+	"                             int cx, int cy, int rw, int rh,\n"
+	"                             int sub_r)\n"
+	"{\n"
+	"    int hs=rw/2;\n"
+	"    int hh=rh/2;\n"
+	"    int xs=cx-hs, ys=cy-hh, xe=cx-hs+rw, ye=cy-hh+rh;\n"
+	"    if(rw<=0||rh<=0) { xs=0; ys=0; xe=w; ye=h; }\n"
+	"    xs=clamp(xs,0,w); ys=clamp(ys,0,h);\n"
+	"    xe=clamp(xe,0,w); ye=clamp(ye,0,h);\n"
+	"\n"
+	"    int bx=xs, by=ys;\n"
+	"    unsigned char bv=0;\n"
+	"    for(int y=ys; y<ye; y++)\n"
+	"        for(int x=xs; x<xe; x++)\n"
+	"            if(img[y*stride+x] > bv) { bv=img[y*stride+x]; bx=x; by=y; }\n"
+	"\n"
+	"    float2 sp = subpixel_refine(img, w, h, stride, bx, by, sub_r);\n"
+	"    res[0]=sp.x; res[1]=sp.y; res[2]=(float)bv;\n"
+	"}\n";	
 }
 
 bool ocl_load_kernels(ocl_core_t ocl)
