@@ -8,6 +8,7 @@ private const char* _ocl_kernel_names_t[] =
 {
 	"subtract_images",
 	"histogram",
+	"brightest_spot",
 	NULL
 };
 
@@ -170,7 +171,7 @@ const char* ocl_get_source_subtract_images()
 	"}\n";
 }
 
-void ocl_set_parameter_subtract_images(cl_kernel kernel, ocl_image_operation_t parameter, cl_mem b, cl_mem result)
+void ocl_set_parameter_subtract_images(cl_kernel kernel, ocl_image_operation_t parameter, cl_mem b)
 {
 	cl_int error = CL_SUCCESS;
 	int min_val = 0;
@@ -178,7 +179,7 @@ void ocl_set_parameter_subtract_images(cl_kernel kernel, ocl_image_operation_t p
 
 	error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &parameter->image);
 	error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &b);
-	error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &result);
+	error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &parameter->result);
 	error |= clSetKernelArg(kernel, 3, sizeof(int), &parameter->width);
 	error |= clSetKernelArg(kernel, 4, sizeof(int), &parameter->height);
 	error |= clSetKernelArg(kernel, 5, sizeof(int), &parameter->pitch_bytes);
@@ -209,12 +210,12 @@ const char* ocl_get_source_histogram()
     "}\n";
 }
 
-void ocl_set_parameter_histogram(cl_kernel kernel, ocl_image_operation_t parameter, cl_mem result)
+void ocl_set_parameter_histogram(cl_kernel kernel, ocl_image_operation_t parameter)
 {
     cl_int error = CL_SUCCESS;
 
     error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &parameter->image);
-    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &result);
+    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &parameter->result);
     error |= clSetKernelArg(kernel, 2, sizeof(int), &parameter->width);
     error |= clSetKernelArg(kernel, 3, sizeof(int), &parameter->height);
     error |= clSetKernelArg(kernel, 4, sizeof(int), &parameter->pitch_bytes);
@@ -269,12 +270,12 @@ const char* ocl_get_source_brightest_spot()
 	"}\n";
 }
 
-void ocl_set_parameter_brightest_spot(cl_kernel kernel, ocl_image_operation_t parameter, int cx, int cy, int rw, int rh, int sub_r, cl_mem result)
+void ocl_set_parameter_brightest_spot(cl_kernel kernel, ocl_image_operation_t parameter, int cx, int cy, int rw, int rh, int sub_r)
 {
     cl_int error = CL_SUCCESS;
 
     error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &parameter->image);
-    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &result);
+    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &parameter->result);
     error |= clSetKernelArg(kernel, 2, sizeof(int), &parameter->width);
     error |= clSetKernelArg(kernel, 3, sizeof(int), &parameter->height);
     error |= clSetKernelArg(kernel, 4, sizeof(int), &parameter->pitch_bytes);
