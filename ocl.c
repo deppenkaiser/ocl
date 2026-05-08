@@ -12,7 +12,7 @@ private const char* _ocl_kernel_names_t[] =
 	NULL
 };
 
-bool ocl_initialize(ocl_core_t ocl)
+bool ocl_initialize(const ocl_core_t ocl)
 {
 	bool is_ok = false;
 
@@ -68,7 +68,7 @@ bool ocl_initialize(ocl_core_t ocl)
 	return is_ok;
 }
 
-bool ocl_compile(ocl_core_t ocl)
+bool ocl_compile(const ocl_core_t ocl)
 {
 	bool is_ok = false;
     cl_int error = CL_SUCCESS;
@@ -97,7 +97,7 @@ bool ocl_compile(ocl_core_t ocl)
 	return is_ok;
 }
 
-void ocl_deinitialize(ocl_core_t ocl)
+void ocl_deinitialize(const ocl_core_t ocl)
 {
 	for (size_t i = 0; i < OCL_MAX_KERNELS; ++i)
 	{
@@ -129,7 +129,7 @@ void ocl_deinitialize(ocl_core_t ocl)
 	logging_log_message("OpenCL is deinitialized.");
 }
 
-cl_mem ocl_create_input_buffer_from_memory(ocl_core_t ocl, uint8_t* data, size_t size_bytes)
+cl_mem ocl_create_input_buffer_from_memory(const ocl_core_t ocl, uint8_t* data, size_t size_bytes)
 {
 	cl_int error = CL_SUCCESS;
 	cl_mem buffer = clCreateBuffer(ocl->context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, size_bytes, data, &error);
@@ -140,7 +140,7 @@ cl_mem ocl_create_input_buffer_from_memory(ocl_core_t ocl, uint8_t* data, size_t
 	return buffer;
 }
 
-cl_mem ocl_create_output_buffer(ocl_core_t ocl, size_t size_bytes)
+cl_mem ocl_create_output_buffer(const ocl_core_t ocl, size_t size_bytes)
 {
 	cl_int error = CL_SUCCESS;
 	cl_mem buffer = clCreateBuffer(ocl->context, CL_MEM_WRITE_ONLY, size_bytes, NULL, &error);
@@ -171,7 +171,7 @@ const char* ocl_get_source_subtract_images()
 	"}\n";
 }
 
-void ocl_set_parameter_subtract_images(cl_kernel kernel, ocl_image_operation_t parameter, cl_mem b, cl_mem result)
+void ocl_set_parameter_subtract_images(const cl_kernel kernel, const ocl_image_operation_t parameter, cl_mem b, cl_mem result)
 {
 	cl_int error = CL_SUCCESS;
 	int min_val = 0;
@@ -210,7 +210,7 @@ const char* ocl_get_source_histogram()
     "}\n";
 }
 
-void ocl_set_parameter_histogram(cl_kernel kernel, ocl_image_operation_t parameter, cl_mem result)
+void ocl_set_parameter_histogram(const cl_kernel kernel, const ocl_image_operation_t parameter, cl_mem result)
 {
     cl_int error = CL_SUCCESS;
 
@@ -270,7 +270,7 @@ const char* ocl_get_source_brightest_spot()
 	"}\n";
 }
 
-void ocl_set_parameter_brightest_spot(cl_kernel kernel, ocl_image_operation_t parameter, int cx, int cy, int rw, int rh, int sub_r, cl_mem result)
+void ocl_set_parameter_brightest_spot(const cl_kernel kernel, const ocl_image_operation_t parameter, int cx, int cy, int rw, int rh, int sub_r, cl_mem result)
 {
     cl_int error = CL_SUCCESS;
 
@@ -365,7 +365,7 @@ const char* ocl_get_sources()
 	"}\n";	
 }
 
-bool ocl_load_kernels(ocl_core_t ocl)
+bool ocl_load_kernels(const ocl_core_t ocl)
 {
 	bool is_ok = true;
 	for (size_t i = 0; i < OCL_MAX_KERNELS; ++i)

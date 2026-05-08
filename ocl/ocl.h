@@ -62,14 +62,14 @@ typedef struct ocl_image_operation
 
 typedef cl_uint ocl_histogram_t[256];
 
-bool ocl_initialize(ocl_core_t ocl);
-bool ocl_compile(ocl_core_t ocl);
-void ocl_deinitialize(ocl_core_t ocl);
-cl_mem ocl_create_input_buffer_from_memory(ocl_core_t ocl, uint8_t* data, size_t size_bytes);
-cl_mem ocl_create_output_buffer(ocl_core_t ocl, size_t size_bytes);
+bool ocl_initialize(const ocl_core_t ocl);
+bool ocl_compile(const ocl_core_t ocl);
+void ocl_deinitialize(const ocl_core_t ocl);
+cl_mem ocl_create_input_buffer_from_memory(const ocl_core_t ocl, uint8_t* data, size_t size_bytes);
+cl_mem ocl_create_output_buffer(const ocl_core_t ocl, size_t size_bytes);
 const char* ocl_get_source_subtract_images();
-void ocl_set_parameter_subtract_images(cl_kernel kernel, ocl_image_operation_t parameter, cl_mem b, cl_mem result);
-void ocl_set_parameter_histogram(cl_kernel kernel, ocl_image_operation_t parameter, cl_mem result);
-void ocl_set_parameter_brightest_spot(cl_kernel kernel, ocl_image_operation_t parameter, int cx, int cy, int rw, int rh, int sub_r, cl_mem result);
+void ocl_set_parameter_subtract_images(const cl_kernel kernel, const ocl_image_operation_t parameter, cl_mem b, cl_mem result);
+void ocl_set_parameter_histogram(const cl_kernel kernel, const ocl_image_operation_t parameter, cl_mem result);
+void ocl_set_parameter_brightest_spot(const cl_kernel kernel, const ocl_image_operation_t parameter, int cx, int cy, int rw, int rh, int sub_r, cl_mem result);
 const char* ocl_get_sources();
-bool ocl_load_kernels(ocl_core_t ocl);
+bool ocl_load_kernels(const ocl_core_t ocl);
