@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
+include_guard(GLOBAL)
 
 project(ocl LANGUAGES C)
 
@@ -9,18 +10,31 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+add_subdirectory(
+	../logging
+	${CMAKE_BINARY_DIR}/logging_from_ocl
+)
+
+add_subdirectory(
+	../threading
+	${CMAKE_BINARY_DIR}/threading_from_ocl)
+
 add_library(ocl STATIC)
 
 target_sources(ocl PRIVATE
-    ocl.c
+	ocl.c
 )
 
 target_include_directories(ocl PUBLIC
-    ${CMAKE_CURRENT_LIST_DIR}/../api
-    ${CMAKE_CURRENT_LIST_DIR}/../logging
+	${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_include_directories(ocl PRIVATE
+	${CMAKE_CURRENT_SOURCE_DIR}/../api
 )
 
 target_link_libraries(ocl
 	OpenCL::OpenCL
 	logging
+	threading
 )
