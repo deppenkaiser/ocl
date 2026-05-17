@@ -6,7 +6,18 @@
 
 #define OCL_MAX_PLATFORMS 3
 #define OCL_MAX_DEVICES 3
-#define OCL_MAX_KERNELS 3
+
+typedef enum
+{
+	OCL_KERNEL_SUBTRACT_IMAGES = 0,
+	OCL_KERNEL_HISTOGRAM,
+	OCL_KERNEL_BRIGHTEST_SPOT,
+	OCL_KERNEL_MATVEC_BF16,
+	OCL_KERNEL_MATVEC_BF16_FUSED,
+	OCL_KERNEL_COUNT
+} ocl_kernel_t;
+
+#define OCL_MAX_KERNELS OCL_KERNEL_COUNT
 
 typedef struct ocl_platform_info
 {
@@ -62,6 +73,14 @@ typedef struct ocl_image_operation
 
 typedef cl_uint ocl_histogram_t[256];
 
+/* Buffer-Typen */
+typedef enum
+{
+	OCL_BUF_READ_ONLY,
+	OCL_BUF_WRITE_ONLY,
+	OCL_BUF_READ_WRITE
+} ocl_buf_type_t;
+
 bool ocl_initialize(const ocl_core_t ocl);
 bool ocl_compile(const ocl_core_t ocl);
 void ocl_deinitialize(const ocl_core_t ocl);
@@ -73,3 +92,9 @@ void ocl_set_parameter_histogram(const cl_kernel kernel, const ocl_image_operati
 void ocl_set_parameter_brightest_spot(const cl_kernel kernel, const ocl_image_operation_t parameter, int cx, int cy, int rw, int rh, int sub_r, cl_mem result);
 const char* ocl_get_sources();
 bool ocl_load_kernels(const ocl_core_t ocl);
+cl_mem ocl_create_buffer(const ocl_core_t ocl, ocl_buf_type_t type, size_t size_bytes, void *host_ptr);
+bool ocl_enqueue_kernel(const ocl_core_t ocl, cl_kernel kernel, size_t global_work_size, size_t local_work_size);
+const char *ocl_get_source_matvec_bf16(void);
+const char *ocl_get_source_matvec_bf16_fused(void);
+void ocl_set_parameter_matvec_bf16(const cl_kernel kernel, cl_mem y, cl_mem x, cl_mem W, int in_dim, int out_dim);
+cl_kernel ocl_get_kernel(const ocl_core_t ocl, ocl_kernel_t kernel);
