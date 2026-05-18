@@ -249,6 +249,7 @@ private char *_ocl_build_source(void)
 		ocl_get_source_brightest_spot(),
 		ocl_get_source_matvec_bf16(),
 		ocl_get_source_matvec_bf16_fused(),
+		ocl_get_source_matvec_f32(),
 		NULL
 	};
 
