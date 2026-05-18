@@ -118,3 +118,21 @@ protected const char* ocl_get_source_matvec_bf16_fused(void)
 	"	y1[o] = sum1;\n"
 	"}\n";
 }
+
+protected const char* ocl_source_matvec_f32(void)
+{
+	return
+	"__kernel void matvec_f32(__global float *y,\n"
+	"                          __global const float *x,\n"
+	"                          __global const float *W,\n"
+	"                          int in_dim, int out_dim)\n"
+	"{\n"
+	"	int o = get_global_id(0);\n"
+	"	if (o >= out_dim) return;\n"
+	"	const float *row = W + (size_t)o * in_dim;\n"
+	"	float sum = 0.0f;\n"
+	"	for (int k = 0; k < in_dim; ++k)\n"
+	"		sum = fma(row[k], x[k], sum);\n"
+	"	y[o] = sum;\n"
+	"}\n";
+}

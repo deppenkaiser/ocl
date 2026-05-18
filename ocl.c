@@ -13,7 +13,8 @@ private const char *_ocl_kernel_names[OCL_KERNEL_COUNT] =
 	"histogram",
 	"brightest_spot",
 	"matvec_bf16",
-	"matvec_bf16_fused"
+	"matvec_bf16_fused",
+	"matvec_f32"
 };
 
 bool ocl_initialize(const ocl_core_t ocl)
