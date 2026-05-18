@@ -119,7 +119,7 @@ protected const char* ocl_get_source_matvec_bf16_fused(void)
 	"}\n";
 }
 
-protected const char* ocl_source_matvec_f32(void)
+protected const char* ocl_get_source_matvec_f32(void)
 {
 	return
 	"__kernel void matvec_f32(__global float *y,\n"
