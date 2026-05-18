@@ -307,3 +307,8 @@ bool ocl_compile(const ocl_core_t ocl)
 
 	return is_ok;
 }
+
+void ocl_finish_frame(const ocl_core_t ocl)
+{
+	clFinish(ocl->queue);
+}

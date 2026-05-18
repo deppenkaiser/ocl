@@ -91,6 +91,7 @@ bool ocl_load_kernels(const ocl_core_t ocl);
 cl_mem ocl_create_buffer(const ocl_core_t ocl, ocl_buf_type_t type, size_t size_bytes, void *host_ptr);
 bool ocl_enqueue_kernel(const ocl_core_t ocl, cl_kernel kernel, size_t global_work_size, size_t local_work_size);
 cl_kernel ocl_get_kernel(const ocl_core_t ocl, ocl_kernel_t kernel);
+void ocl_finish_frame(const ocl_core_t ocl);
 
 void ocl_set_parameter_subtract_images(const cl_kernel kernel, const ocl_image_operation_t parameter, cl_mem b, cl_mem result);
 void ocl_set_parameter_histogram(const cl_kernel kernel, const ocl_image_operation_t parameter, cl_mem result);
