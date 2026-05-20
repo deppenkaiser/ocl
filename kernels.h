@@ -9,6 +9,6 @@ protected_import(const char*, ocl_get_source_matvec_bf16(void));
 protected_import(const char*, ocl_get_source_matvec_bf16_fused(void));
 protected_import(const char*, ocl_get_source_matvec_f32(void));
 protected_import(const char*, ocl_get_source_sd_attention_f32(void));
-protected_import(const char*, ocl_get_source_sd_qkv_proj_f32(void));
 protected_import(const char*, ocl_get_source_sd_output_proj_f32(void));
 protected_import(const char*, ocl_get_source_sd_attention_out_f32(void));
+protected_import(const char*, ocl_get_source_sd_norm_qkv_f32(void));
