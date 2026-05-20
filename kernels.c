@@ -257,3 +257,34 @@ protected const char* ocl_get_source_sd_qkv_proj_f32(void)
 	"}\n";
 }
 
+protected const char* ocl_get_source_sd_output_proj_f32(void)
+{
+	return
+	"__kernel void sd_output_proj_f32(\n"
+	"	__global float *hidden,\n"
+	"	__global const float *attn_out,\n"
+	"	__global const float *Wo,\n"
+	"	__global const float *layer_scale,\n"
+	"	int new_frames,\n"
+	"	int dec_hidden,\n"
+	"	int qkv_dim\n"
+	")\n"
+	"{\n"
+	"	int o = get_global_id(0);\n"
+	"	int s = get_global_id(1);\n"
+	"\n"
+	"	if (o >= dec_hidden || s >= new_frames) return;\n"
+	"\n"
+	"	const float *attn = attn_out + (size_t)s * qkv_dim;\n"
+	"	const float *row = Wo + (size_t)o * qkv_dim;\n"
+	"\n"
+	"	float sum = 0.0f;\n"
+	"	for (int i = 0; i < qkv_dim; ++i)\n"
+	"		sum += row[i] * attn[i];\n"
+	"\n"
+	"	if (layer_scale)\n"
+	"		sum *= layer_scale[o];\n"
+	"\n"
+	"	hidden[(size_t)s * dec_hidden + o] += sum;\n"
+	"}\n";
+}
