@@ -11,3 +11,4 @@ protected_import(const char*, ocl_get_source_matvec_f32(void));
 protected_import(const char*, ocl_get_source_sd_attention_f32(void));
 protected_import(const char*, ocl_get_source_sd_qkv_proj_f32(void));
 protected_import(const char*, ocl_get_source_sd_output_proj_f32(void));
+protected_import(const char*, ocl_get_source_sd_attention_out_f32(void));
