@@ -214,3 +214,46 @@ protected const char* ocl_get_source_sd_attention_f32(void)
 	"	}\n"
 	"}\n";
 }
+
+protected const char* ocl_get_source_sd_qkv_proj_f32(void)
+{
+	return
+	"__kernel void sd_qkv_proj_f32(\n"
+	"	__global float *q,\n"
+	"	__global float *k,\n"
+	"	__global float *v,\n"
+	"	__global const float *x_norm,\n"
+	"	__global const float *Wq,\n"
+	"	__global const float *Wk,\n"
+	"	__global const float *Wv,\n"
+	"	int new_frames,\n"
+	"	int dec_hidden,\n"
+	"	int qkv_dim\n"
+	")\n"
+	"{\n"
+	"	int o = get_global_id(0);\n"
+	"	int s = get_global_id(1);\n"
+	"\n"
+	"	if (o >= qkv_dim || s >= new_frames) return;\n"
+	"\n"
+	"	const float *xs = x_norm + (size_t)s * dec_hidden;\n"
+	"	const float *row_q = Wq + (size_t)o * dec_hidden;\n"
+	"	const float *row_k = Wk + (size_t)o * dec_hidden;\n"
+	"	const float *row_v = Wv + (size_t)o * dec_hidden;\n"
+	"\n"
+	"	float sum_q = 0.0f, sum_k = 0.0f, sum_v = 0.0f;\n"
+	"	for (int i = 0; i < dec_hidden; ++i)\n"
+	"	{\n"
+	"		float xi = xs[i];\n"
+	"		sum_q += row_q[i] * xi;\n"
+	"		sum_k += row_k[i] * xi;\n"
+	"		sum_v += row_v[i] * xi;\n"
+	"	}\n"
+	"\n"
+	"	size_t idx = (size_t)s * qkv_dim + o;\n"
+	"	q[idx] = sum_q;\n"
+	"	k[idx] = sum_k;\n"
+	"	v[idx] = sum_v;\n"
+	"}\n";
+}
+
