@@ -14,7 +14,8 @@ private const char *_ocl_kernel_names[OCL_KERNEL_COUNT] =
 	"brightest_spot",
 	"matvec_bf16",
 	"matvec_bf16_fused",
-	"matvec_f32"
+	"matvec_f32",
+	"sd_attention_f32"
 };
 
 bool ocl_initialize(const ocl_core_t ocl)
@@ -250,6 +251,7 @@ private char *_ocl_build_source(void)
 		ocl_get_source_matvec_bf16(),
 		ocl_get_source_matvec_bf16_fused(),
 		ocl_get_source_matvec_f32(),
+		ocl_get_source_sd_attention_f32(),
 		NULL
 	};
 
