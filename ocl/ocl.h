@@ -103,4 +103,4 @@ void ocl_set_parameter_subtract_images(const cl_kernel kernel, const ocl_image_o
 void ocl_set_parameter_histogram(const cl_kernel kernel, const ocl_image_operation_t parameter, cl_mem result);
 void ocl_set_parameter_brightest_spot(const cl_kernel kernel, const ocl_image_operation_t parameter, int cx, int cy, int rw, int rh, int sub_r, cl_mem result);
 void ocl_set_parameter_matvec_bf16(const cl_kernel kernel, cl_mem y, cl_mem x, cl_mem W, int in_dim, int out_dim);
-void ocl_set_parameter_iwt_update(const cl_kernel kernel, cl_mem nodes, float D, float l0, uint32_t num_nodes, float dt);
+void ocl_set_parameter_iwt_update(const cl_kernel kernel, cl_mem nodes, cl_mem adjacency, float D, float l0, float G, float k, float Q, uint32_t num_nodes, float dt);
