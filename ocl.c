@@ -18,7 +18,8 @@ private const char *_ocl_kernel_names[OCL_KERNEL_COUNT] =
 	"sd_attention_f32",
 	"sd_output_proj_f32",
 	"sd_attention_out_f32",
-	"sd_norm_qkv_f32"
+	"sd_norm_qkv_f32",
+	"iwt_update"
 };
 
 bool ocl_initialize(const ocl_core_t ocl)
@@ -258,6 +259,7 @@ private char *_ocl_build_source(void)
 		ocl_get_source_sd_output_proj_f32(),
 		ocl_get_source_sd_attention_out_f32(),
 		ocl_get_source_sd_norm_qkv_f32(),
+		ocl_get_source_iwt_update(),
 		NULL
 	};	
 
@@ -270,6 +272,21 @@ private char *_ocl_build_source(void)
 	for (int i = 0; parts[i]; ++i) strcat(source, parts[i]);
 
 	return source;
+}
+
+void ocl_set_parameter_iwt_update(const cl_kernel kernel, cl_mem nodes, float D, float l0, uint32_t num_nodes, float dt)
+{
+    cl_int error = CL_SUCCESS;
+    error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &nodes);
+    error |= clSetKernelArg(kernel, 1, sizeof(float), &D);
+    error |= clSetKernelArg(kernel, 2, sizeof(float), &l0);
+    error |= clSetKernelArg(kernel, 3, sizeof(uint32_t), &num_nodes);
+    error |= clSetKernelArg(kernel, 4, sizeof(float), &dt);
+    
+	if (error != CL_SUCCESS)
+	{
+        logging_log_message("Error: Setting IWT update arguments failed!");
+    }
 }
 
 /* ocl_get_sources() nutzt den Builder */

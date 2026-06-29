@@ -19,6 +19,7 @@ typedef enum
 	OCL_KERNEL_SD_OUTPUT_PROJ_F32,
 	OCL_KERNEL_SD_ATTENTION_OUT_F32,
 	OCL_KERNEL_SD_NORM_QKV_F32,
+	OCL_KERNEL_IWT_UPDATE,
 	OCL_KERNEL_COUNT
 } ocl_kernel_t;
 
@@ -102,3 +103,4 @@ void ocl_set_parameter_subtract_images(const cl_kernel kernel, const ocl_image_o
 void ocl_set_parameter_histogram(const cl_kernel kernel, const ocl_image_operation_t parameter, cl_mem result);
 void ocl_set_parameter_brightest_spot(const cl_kernel kernel, const ocl_image_operation_t parameter, int cx, int cy, int rw, int rh, int sub_r, cl_mem result);
 void ocl_set_parameter_matvec_bf16(const cl_kernel kernel, cl_mem y, cl_mem x, cl_mem W, int in_dim, int out_dim);
+void ocl_set_parameter_iwt_update(const cl_kernel kernel, cl_mem nodes, float D, float l0, uint32_t num_nodes, float dt);
