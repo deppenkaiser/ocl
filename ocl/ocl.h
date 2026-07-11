@@ -109,6 +109,7 @@ void ocl_set_parameter_iwt_update(
     cl_mem nodes,
     cl_mem adjacency,
     cl_mem flows,
+    cl_mem q_potential,
     double D,
     double l0,
     double G,

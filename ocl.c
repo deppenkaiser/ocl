@@ -279,6 +279,7 @@ void ocl_set_parameter_iwt_update(
     cl_mem nodes,
     cl_mem adjacency,
     cl_mem flows,
+    cl_mem q_potential,
     double D,
     double l0,
     double G,
@@ -292,15 +293,16 @@ void ocl_set_parameter_iwt_update(
     error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &nodes);
     error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &adjacency);
     error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &flows);
-    error |= clSetKernelArg(kernel, 3, sizeof(double), &D);
-    error |= clSetKernelArg(kernel, 4, sizeof(double), &l0);
-    error |= clSetKernelArg(kernel, 5, sizeof(double), &G);
-    error |= clSetKernelArg(kernel, 6, sizeof(double), &k);
-    error |= clSetKernelArg(kernel, 7, sizeof(double), &Q);
-    error |= clSetKernelArg(kernel, 8, sizeof(uint32_t), &num_nodes);
-    error |= clSetKernelArg(kernel, 9, sizeof(double), &dt);
+    error |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &q_potential);
+    error |= clSetKernelArg(kernel, 4, sizeof(double), &D);
+    error |= clSetKernelArg(kernel, 5, sizeof(double), &l0);
+    error |= clSetKernelArg(kernel, 6, sizeof(double), &G);
+    error |= clSetKernelArg(kernel, 7, sizeof(double), &k);
+    error |= clSetKernelArg(kernel, 8, sizeof(double), &Q);
+    error |= clSetKernelArg(kernel, 9, sizeof(uint32_t), &num_nodes);
+    error |= clSetKernelArg(kernel, 10, sizeof(double), &dt);
     if (error != CL_SUCCESS) {
-        logging_log_message("Error: Setting IWT update arguments failed!");
+        fprintf(stderr, "Fehler: Setzen der Kernel-Argumente fehlgeschlagen.\n");
     }
 }
 
