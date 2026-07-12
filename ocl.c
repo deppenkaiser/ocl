@@ -19,7 +19,8 @@ private const char *_ocl_kernel_names[OCL_KERNEL_COUNT] =
 	"sd_output_proj_f32",
 	"sd_attention_out_f32",
 	"sd_norm_qkv_f32",
-	"iwt_update"
+	"iwt_update",
+	"compute_q_field"
 };
 
 bool ocl_initialize(const ocl_core_t ocl)
@@ -260,6 +261,7 @@ private char *_ocl_build_source(void)
 		ocl_get_source_sd_attention_out_f32(),
 		ocl_get_source_sd_norm_qkv_f32(),
 		ocl_get_source_iwt_update(),
+		ocl_get_source_q_field(),
 		NULL
 	};	
 
@@ -305,6 +307,30 @@ void ocl_set_parameter_iwt_update(
     error |= clSetKernelArg(kernel, 11, sizeof(uint32_t), &offset);
     if (error != CL_SUCCESS) {
         fprintf(stderr, "Fehler: Setzen der Kernel-Argumente fehlgeschlagen.\n");
+    }
+}
+
+void ocl_set_parameter_q_field(
+    const cl_kernel kernel,
+    cl_mem nodes,
+    cl_mem sqrt_rho,
+    cl_mem q_potential,
+    uint32_t num_nodes,
+    double hbar,
+    double mass,
+    uint32_t offset
+)
+{
+    cl_int error = CL_SUCCESS;
+    error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &nodes);
+    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &sqrt_rho);
+    error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &q_potential);
+    error |= clSetKernelArg(kernel, 3, sizeof(uint32_t), &num_nodes);
+    error |= clSetKernelArg(kernel, 4, sizeof(double), &hbar);
+    error |= clSetKernelArg(kernel, 5, sizeof(double), &mass);
+    error |= clSetKernelArg(kernel, 6, sizeof(uint32_t), &offset);
+    if (error != CL_SUCCESS) {
+        logging_log_message("Fehler: Setzen der Q-Feld-Argumente fehlgeschlagen.");
     }
 }
 

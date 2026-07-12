@@ -20,6 +20,7 @@ typedef enum
 	OCL_KERNEL_SD_ATTENTION_OUT_F32,
 	OCL_KERNEL_SD_NORM_QKV_F32,
 	OCL_KERNEL_IWT_UPDATE,
+	OCL_KERNEL_Q_FIELD,
 	OCL_KERNEL_COUNT
 } ocl_kernel_t;
 
@@ -118,4 +119,15 @@ void ocl_set_parameter_iwt_update(
     uint32_t num_nodes,
     double dt,
 	uint32_t offset
+);
+
+void ocl_set_parameter_q_field(
+    const cl_kernel kernel,
+    cl_mem nodes,
+    cl_mem sqrt_rho,
+    cl_mem q_potential,
+    uint32_t num_nodes,
+    double hbar,
+    double mass,
+    uint32_t offset
 );

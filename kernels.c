@@ -502,3 +502,42 @@ protected const char* ocl_get_source_iwt_update(void)
     "    nodes[i] = I_new;\n"
     "}\n";
 }
+
+protected const char* ocl_get_source_q_field(void)
+{
+    return
+    "// ============================================================\n"
+    "// Q-Feld (Bohm-Potential) - GLOBAL\n"
+    "// ============================================================\n"
+    "\n"
+    "__kernel void compute_q_field(\n"
+    "    __global const double* nodes,\n"
+    "    __global const double* sqrt_rho,\n"
+    "    __global double* q_potential,\n"
+    "    uint num_nodes,\n"
+    "    double hbar,\n"
+    "    double mass,\n"
+    "    uint offset\n"
+    ")\n"
+    "{\n"
+    "    uint i = get_global_id(0) + offset;\n"
+    "    if (i >= num_nodes) return;\n"
+    "\n"
+    "    double sqrt_rho_i = sqrt_rho[i];\n"
+    "\n"
+    "    double laplace = 0.0;\n"
+    "    for (uint j = 0; j < num_nodes; j++) {\n"
+    "        if (i == j) continue;\n"
+    "        double dist = (double)(j - i);\n"
+    "        if (dist < 0.0) dist = -dist;\n"
+    "        if (dist < 1.0) dist = 1.0;\n"
+    "        double weight = 1.0 / (dist * dist);\n"
+    "        laplace += weight * (sqrt_rho[j] - sqrt_rho_i);\n"
+    "    }\n"
+    "\n"
+    "    double prefactor = -hbar * hbar / (2.0 * mass);\n"
+    "    q_potential[i] = (sqrt_rho_i > 1e-30) \n"
+    "        ? prefactor * laplace / sqrt_rho_i \n"
+    "        : 0.0;\n"
+    "}\n";
+}
