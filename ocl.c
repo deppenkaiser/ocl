@@ -20,7 +20,8 @@ private const char *_ocl_kernel_names[OCL_KERNEL_COUNT] =
 	"sd_attention_out_f32",
 	"sd_norm_qkv_f32",
 	"iwt_update",
-	"compute_q_field"
+	"compute_q_field",
+	"iwt_update_motion"
 };
 
 bool ocl_initialize(const ocl_core_t ocl)
@@ -262,6 +263,7 @@ private char *_ocl_build_source(void)
 		ocl_get_source_sd_norm_qkv_f32(),
 		ocl_get_source_iwt_update(),
 		ocl_get_source_q_field(),
+		ocl_get_source_iwt_update_motion(),
 		NULL
 	};	
 
@@ -331,6 +333,42 @@ void ocl_set_parameter_q_field(
     error |= clSetKernelArg(kernel, 6, sizeof(uint32_t), &offset);
     if (error != CL_SUCCESS) {
         logging_log_message("Fehler: Setzen der Q-Feld-Argumente fehlgeschlagen.");
+    }
+}
+
+void ocl_set_parameter_iwt_update_motion(
+    const cl_kernel kernel,
+    cl_mem nodes,
+    cl_mem x, cl_mem y, cl_mem z,
+    cl_mem vx, cl_mem vy, cl_mem vz,
+    cl_mem adjacency,
+    cl_mem q_potential,
+    double D, double l0, double G, double k, double Q,
+    uint32_t num_nodes,
+    double dt,
+    uint32_t offset
+)
+{
+    cl_int error = CL_SUCCESS;
+    error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &nodes);
+    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &x);
+    error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &y);
+    error |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &z);
+    error |= clSetKernelArg(kernel, 4, sizeof(cl_mem), &vx);
+    error |= clSetKernelArg(kernel, 5, sizeof(cl_mem), &vy);
+    error |= clSetKernelArg(kernel, 6, sizeof(cl_mem), &vz);
+    error |= clSetKernelArg(kernel, 7, sizeof(cl_mem), &adjacency);
+    error |= clSetKernelArg(kernel, 8, sizeof(cl_mem), &q_potential);
+    error |= clSetKernelArg(kernel, 9, sizeof(double), &D);
+    error |= clSetKernelArg(kernel, 10, sizeof(double), &l0);
+    error |= clSetKernelArg(kernel, 11, sizeof(double), &G);
+    error |= clSetKernelArg(kernel, 12, sizeof(double), &k);
+    error |= clSetKernelArg(kernel, 13, sizeof(double), &Q);
+    error |= clSetKernelArg(kernel, 14, sizeof(uint32_t), &num_nodes);
+    error |= clSetKernelArg(kernel, 15, sizeof(double), &dt);
+    error |= clSetKernelArg(kernel, 16, sizeof(uint32_t), &offset);
+    if (error != CL_SUCCESS) {
+        fprintf(stderr, "Fehler: Setzen der Motion-Update-Argumente fehlgeschlagen.\n");
     }
 }
 
