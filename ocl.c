@@ -286,7 +286,8 @@ void ocl_set_parameter_iwt_update(
     double k,
     double Q,
     uint32_t num_nodes,
-    double dt
+    double dt,
+	uint32_t offset
 )
 {
     cl_int error = CL_SUCCESS;
@@ -301,6 +302,7 @@ void ocl_set_parameter_iwt_update(
     error |= clSetKernelArg(kernel, 8, sizeof(double), &Q);
     error |= clSetKernelArg(kernel, 9, sizeof(uint32_t), &num_nodes);
     error |= clSetKernelArg(kernel, 10, sizeof(double), &dt);
+    error |= clSetKernelArg(kernel, 11, sizeof(uint32_t), &offset);
     if (error != CL_SUCCESS) {
         fprintf(stderr, "Fehler: Setzen der Kernel-Argumente fehlgeschlagen.\n");
     }

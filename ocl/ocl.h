@@ -116,5 +116,6 @@ void ocl_set_parameter_iwt_update(
     double k,
     double Q,
     uint32_t num_nodes,
-    double dt
+    double dt,
+	uint32_t offset
 );
