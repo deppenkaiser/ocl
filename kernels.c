@@ -501,9 +501,11 @@ protected const char* ocl_get_source_iwt_update_coupling(void)
     "__kernel void iwt_update_coupling(\n"
     "    __global const double* I,\n"
     "    __global double* K,\n"
+    "    __global const double* Q,\n"      // NEU
     "    double DT,\n"
     "    double ETA,\n"
     "    double LAMBDA,\n"
+    "    double GAMMA,\n"                  // NEU
     "    int N,\n"
     "    int batch_start,\n"
     "    int batch_end)\n"
@@ -513,11 +515,13 @@ protected const char* ocl_get_source_iwt_update_coupling(void)
     "    if (idx >= batch_end) return;\n"
     "\n"
     "    double Ii = I[idx];\n"
+    "    double Qi = Q[idx];\n"
     "    for (int j = 0; j < N; j++)\n"
     "    {\n"
     "        double diff = Ii - I[j];\n"
     "        double Kij = K[idx * N + j];\n"
-    "        K[idx * N + j] = Kij + ETA * ((diff * diff) - 2.0 * LAMBDA * Kij) * DT;\n"
+    "        double Qj = Q[j];\n"
+    "        K[idx * N + j] = Kij + ETA * ((diff * diff) - 2.0 * LAMBDA * Kij) * DT - GAMMA * Qi * Qj * DT;\n"
     "    }\n"
     "}\n";
 }
