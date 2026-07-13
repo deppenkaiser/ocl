@@ -19,10 +19,6 @@ typedef enum
     OCL_KERNEL_SD_OUTPUT_PROJ_F32,
     OCL_KERNEL_SD_ATTENTION_OUT_F32,
     OCL_KERNEL_SD_NORM_QKV_F32,
-    OCL_KERNEL_COMPUTE_FLUX,
-    OCL_KERNEL_COMPUTE_Q,
-    OCL_KERNEL_UPDATE_I,
-    OCL_KERNEL_UPDATE_K,
     OCL_KERNEL_COUNT
 } ocl_kernel_t;
 
@@ -105,40 +101,3 @@ void ocl_set_parameter_subtract_images(const cl_kernel kernel, const ocl_image_o
 void ocl_set_parameter_histogram(const cl_kernel kernel, const ocl_image_operation_t parameter, cl_mem result);
 void ocl_set_parameter_brightest_spot(const cl_kernel kernel, const ocl_image_operation_t parameter, int cx, int cy, int rw, int rh, int sub_r, cl_mem result);
 void ocl_set_parameter_matvec_bf16(const cl_kernel kernel, cl_mem y, cl_mem x, cl_mem W, int in_dim, int out_dim);
-
-void ocl_set_parameter_compute_flux(
-    const cl_kernel kernel,
-    cl_mem I,
-    cl_mem K,
-    cl_mem J,
-    uint32_t num_nodes
-);
-
-void ocl_set_parameter_compute_q(
-    const cl_kernel kernel,
-    cl_mem J,
-    cl_mem Q,
-    uint32_t num_nodes
-);
-
-void ocl_set_parameter_update_I(
-    const cl_kernel kernel,
-    cl_mem I,
-    cl_mem J,
-    double dt,
-    uint32_t num_nodes
-);
-
-void ocl_set_parameter_update_K(
-    const cl_kernel kernel,
-    cl_mem K,
-    cl_mem I,
-    double eta,
-    double lambda,
-    double dt,
-    uint32_t num_nodes,
-    uint32_t offset_i,
-    uint32_t offset_j,
-    uint32_t batch_i,
-    uint32_t batch_j
-);
