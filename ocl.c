@@ -20,7 +20,8 @@ const char *_ocl_kernel_names[OCL_KERNEL_COUNT] =
     "sd_attention_out_f32",
     "sd_norm_qkv_f32",
 	"iwt_flux",
-	"iwt_q"
+	"iwt_q",
+	"iwt_update_info"
 };
 
 bool ocl_initialize(const ocl_core_t ocl)
@@ -168,7 +169,13 @@ bool ocl_load_kernels(const ocl_core_t ocl)
     {
         cl_int error = CL_SUCCESS;
         ocl->program.kernels[i] = clCreateKernel(ocl->program.binary, _ocl_kernel_names[i], &error);
-        if (error != CL_SUCCESS) { is_ok = false; break; }
+        if (error != CL_SUCCESS)
+        {
+            fprintf(stderr, "Fehler: Kernel '%s' konnte nicht erstellt werden (Fehler %d)\n",
+                    _ocl_kernel_names[i], error);
+            is_ok = false;
+            break;
+        }
     }
     return is_ok;
 }
@@ -189,6 +196,7 @@ static char *_ocl_build_source(void)
         ocl_get_source_sd_norm_qkv_f32(),
 		ocl_get_source_iwt_flux(),
 		ocl_get_source_iwt_q(),
+		ocl_get_source_iwt_update_info(),
         NULL
     };
 

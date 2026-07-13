@@ -478,3 +478,19 @@ protected const char* ocl_get_source_iwt_q(void)
     "    Q[i] = -2.0 * sumJ[i];\n"
     "}\n";
 }
+
+protected const char* ocl_get_source_iwt_update_info(void)
+{
+    return
+    "__kernel void iwt_update_info(\n"
+    "    __global double* I,\n"
+    "    __global const double* sumJ,\n"
+    "    double DT,\n"
+    "    int N)\n"
+    "{\n"
+    "    int i = get_global_id(0);\n"
+    "    if (i >= N) return;\n"
+    "\n"
+    "    I[i] = I[i] + sumJ[i] * DT;\n"
+    "}\n";
+}
