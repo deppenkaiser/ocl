@@ -494,3 +494,30 @@ protected const char* ocl_get_source_iwt_update_info(void)
     "    I[i] = I[i] + sumJ[i] * DT;\n"
     "}\n";
 }
+
+protected const char* ocl_get_source_iwt_update_coupling(void)
+{
+    return
+    "__kernel void iwt_update_coupling(\n"
+    "    __global const double* I,\n"
+    "    __global double* K,\n"
+    "    double DT,\n"
+    "    double ETA,\n"
+    "    double LAMBDA,\n"
+    "    int N,\n"
+    "    int batch_start,\n"
+    "    int batch_end)\n"
+    "{\n"
+    "    int i = get_global_id(0);\n"
+    "    int idx = batch_start + i;\n"
+    "    if (idx >= batch_end) return;\n"
+    "\n"
+    "    double Ii = I[idx];\n"
+    "    for (int j = 0; j < N; j++)\n"
+    "    {\n"
+    "        double diff = Ii - I[j];\n"
+    "        double Kij = K[idx * N + j];\n"
+    "        K[idx * N + j] = Kij + ETA * ((diff * diff) - 2.0 * LAMBDA * Kij) * DT;\n"
+    "    }\n"
+    "}\n";
+}
