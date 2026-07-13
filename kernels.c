@@ -432,3 +432,29 @@ protected const char* ocl_get_source_sd_norm_qkv_f32(void)
 	"	v[idx] = sum_v;\n"
 	"}\n";
 }
+
+protected const char* ocl_get_source_iwt_flux(void)
+{
+    return
+    "__kernel void iwt_flux(\n"
+    "    __global const double* I,\n"
+    "    __global const double* K,\n"
+    "    __global double* sumJ,\n"
+    "    int N,\n"
+    "    int batch_start,\n"
+    "    int batch_end)\n"
+    "{\n"
+    "    int i = get_global_id(0);\n"
+    "    int idx = batch_start + i;\n"
+    "    if (idx >= batch_end) return;\n"
+    "\n"
+    "    double sum = 0.0;\n"
+    "    double Ii = I[idx];\n"
+    "    for (int j = 0; j < N; j++)\n"
+    "    {\n"
+    "        double diff = Ii - I[j];\n"
+    "        sum += K[idx * N + j] * diff;\n"
+    "    }\n"
+    "    sumJ[idx] = sum;\n"
+    "}\n";
+}

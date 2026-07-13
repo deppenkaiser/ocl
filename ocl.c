@@ -18,7 +18,8 @@ const char *_ocl_kernel_names[OCL_KERNEL_COUNT] =
     "sd_attention_f32",
     "sd_output_proj_f32",
     "sd_attention_out_f32",
-    "sd_norm_qkv_f32"
+    "sd_norm_qkv_f32",
+	"iwt_flux"
 };
 
 bool ocl_initialize(const ocl_core_t ocl)
@@ -185,6 +186,7 @@ static char *_ocl_build_source(void)
         ocl_get_source_sd_output_proj_f32(),
         ocl_get_source_sd_attention_out_f32(),
         ocl_get_source_sd_norm_qkv_f32(),
+		ocl_get_source_iwt_flux(),
         NULL
     };
 
