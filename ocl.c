@@ -1,424 +1,142 @@
-#include "ocl/ocl.h"
-#include "kernels.h"
+#define CL_TARGET_OPENCL_VERSION 300
+#include <CL/opencl.h>
+#include <stdbool.h>
 
-#include <CL/cl.h>
-#include <logging/logging.h>
-#include <stdio.h>
-#include <api/api.h>
-#include <string.h>
+#define OCL_MAX_PLATFORMS 3
+#define OCL_MAX_DEVICES 3
 
-private const char *_ocl_kernel_names[OCL_KERNEL_COUNT] =
+typedef enum
 {
-	"subtract_images",
-	"histogram",
-	"brightest_spot",
-	"matvec_bf16",
-	"matvec_bf16_fused",
-	"matvec_f32",
-	"sd_attention_f32",
-	"sd_output_proj_f32",
-	"sd_attention_out_f32",
-	"sd_norm_qkv_f32",
-	"iwt_update",
-	"compute_q_field",
-	"iwt_update_motion"
-};
+    OCL_KERNEL_SUBTRACT_IMAGES = 0,
+    OCL_KERNEL_HISTOGRAM,
+    OCL_KERNEL_BRIGHTEST_SPOT,
+    OCL_KERNEL_MATVEC_BF16,
+    OCL_KERNEL_MATVEC_BF16_FUSED,
+    OCL_KERNEL_MATVEC_F32,
+    OCL_KERNEL_SD_ATTENTION_F32,
+    OCL_KERNEL_SD_OUTPUT_PROJ_F32,
+    OCL_KERNEL_SD_ATTENTION_OUT_F32,
+    OCL_KERNEL_SD_NORM_QKV_F32,
+    OCL_KERNEL_COMPUTE_FLUX,
+    OCL_KERNEL_COMPUTE_Q,
+    OCL_KERNEL_UPDATE_I,
+    OCL_KERNEL_UPDATE_K,
+    OCL_KERNEL_COUNT
+} ocl_kernel_t;
 
-bool ocl_initialize(const ocl_core_t ocl)
+#define OCL_MAX_KERNELS OCL_KERNEL_COUNT
+
+typedef struct ocl_platform_info
 {
-	bool is_ok = false;
+    char name[256];
+    char vendor[256];
+    char version[256];
+} *ocl_platform_info_t;
 
-	if (clGetPlatformIDs(OCL_MAX_PLATFORMS, ocl->platforms.ids, &ocl->platforms.count) == CL_SUCCESS)
-	{
-		logging_log_message("OpenCL platforms found:");
-
-		for (size_t i = 0; i < ocl->platforms.count; ++i)
-		{
-			if (clGetPlatformInfo(ocl->platforms.ids[0], CL_PLATFORM_NAME, sizeof(ocl->platforms.info[i].name), ocl->platforms.info[i].name, NULL) == CL_SUCCESS)
-			{
-				logging_log_message(ocl->platforms.info[i].name);
-			}
-
-			if (clGetPlatformInfo(ocl->platforms.ids[0], CL_PLATFORM_VENDOR, sizeof(ocl->platforms.info[i].vendor), ocl->platforms.info[i].vendor, NULL) == CL_SUCCESS)
-			{
-				logging_log_message(ocl->platforms.info[i].vendor);
-			}
-
-			if (clGetPlatformInfo(ocl->platforms.ids[0], CL_PLATFORM_VERSION, sizeof(ocl->platforms.info[i].version), ocl->platforms.info[i].version, NULL) == CL_SUCCESS)
-			{
-				logging_log_message(ocl->platforms.info[i].version);
-			}
-		}
-
-		if (clGetDeviceIDs(ocl->platforms.ids[0], CL_DEVICE_TYPE_GPU, 1, ocl->devices.ids, &ocl->devices.count) == CL_SUCCESS)
-		{
-			cl_int error = CL_SUCCESS;
-
-			logging_log_message("OpenCL devices found:");
-
-			for (size_t i = 0; i < ocl->devices.count; ++i)
-			{
-				if (clGetDeviceInfo(ocl->devices.ids[i], CL_DEVICE_NAME, sizeof(ocl->devices.info[i].name), ocl->devices.info[i].name, NULL) == CL_SUCCESS)
-				{
-					logging_log_message(ocl->devices.info[i].name);
-				}
-			}
-
-			ocl->context = clCreateContext(NULL, 1, ocl->devices.ids, NULL, NULL, &error);
-			if (error == CL_SUCCESS)
-			{
-				const cl_queue_properties properties[] = {0};
-				ocl->queue = clCreateCommandQueueWithProperties(ocl->context, ocl->devices.ids[0], properties, &error);
-				if (error == CL_SUCCESS)
-				{
-					is_ok = true;
-				}
-			}
-		}
-	}
-	
-	return is_ok;
-}
-
-void ocl_deinitialize(const ocl_core_t ocl)
+typedef struct ocl_platforms
 {
-	for (size_t i = 0; i < OCL_MAX_KERNELS; ++i)
-	{
-		if (ocl->program.kernels[i] != NULL)
-		{
-			clReleaseKernel(ocl->program.kernels[i]);
-			ocl->program.kernels[i] = NULL;
-		}
-	}
+    cl_platform_id ids[OCL_MAX_PLATFORMS];
+    struct ocl_platform_info info[OCL_MAX_PLATFORMS];
+    cl_uint count;
+} *ocl_platforms_t;
 
-	if (ocl->program.binary != NULL)
-	{
-		clReleaseProgram(ocl->program.binary);
-		ocl->program.binary = NULL;
-	}
-
-	if (ocl->queue != NULL)
-	{
-		clReleaseCommandQueue(ocl->queue);
-		ocl->queue = NULL;
-	}
-
-	if (ocl->context != NULL)
-	{
-		clReleaseContext(ocl->context);
-		ocl->context = NULL;
-	}
-
-	logging_log_message("OpenCL is deinitialized.");
-}
-
-cl_mem ocl_create_input_buffer_from_memory(const ocl_core_t ocl, uint8_t* data, size_t size_bytes)
+typedef struct ocl_device_info
 {
-	cl_int error = CL_SUCCESS;
-	cl_mem buffer = clCreateBuffer(ocl->context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, size_bytes, data, &error);
-	if (error != CL_SUCCESS)
-	{
-		logging_log_message("Error: Buffer creation failed!");
-	}
-	return buffer;
-}
+    char name[256];
+    char version[256];
+} *ocl_device_info_t;
 
-cl_mem ocl_create_output_buffer(const ocl_core_t ocl, size_t size_bytes)
+typedef struct ocl_devices
 {
-	cl_int error = CL_SUCCESS;
-	cl_mem buffer = clCreateBuffer(ocl->context, CL_MEM_WRITE_ONLY, size_bytes, NULL, &error);
-	if (error != CL_SUCCESS)
-	{
-		logging_log_message("Error: Buffer creation failed!");
-	}
-	return buffer;
-}
+    cl_device_id ids[OCL_MAX_DEVICES];
+    struct ocl_device_info info[OCL_MAX_DEVICES];
+    cl_uint count;
+} *ocl_devices_t;
 
-void ocl_set_parameter_subtract_images(const cl_kernel kernel, const ocl_image_operation_t parameter, cl_mem b, cl_mem result)
+typedef struct ocl_program
 {
-	cl_int error = CL_SUCCESS;
-	int min_val = 0;
-	int max_val = 255;
+    cl_program binary;
+    const char* source;
+    cl_kernel kernels[OCL_MAX_KERNELS];
+} *ocl_program_t;
 
-	error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &parameter->image);
-	error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &b);
-	error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &result);
-	error |= clSetKernelArg(kernel, 3, sizeof(int), &parameter->width);
-	error |= clSetKernelArg(kernel, 4, sizeof(int), &parameter->height);
-	error |= clSetKernelArg(kernel, 5, sizeof(int), &parameter->pitch_bytes);
-	error |= clSetKernelArg(kernel, 6, sizeof(int), &min_val);
-	error |= clSetKernelArg(kernel, 7, sizeof(int), &max_val);
-
-	if (error != CL_SUCCESS)
-	{
-		logging_log_message("Error: Setting Arguments failed!");
-	}
-}
-
-void ocl_set_parameter_histogram(const cl_kernel kernel, const ocl_image_operation_t parameter, cl_mem result)
+typedef struct ocl_core
 {
-    cl_int error = CL_SUCCESS;
+    struct ocl_platforms platforms;
+    struct ocl_devices devices;
+    struct ocl_program program;
+    cl_context context;
+    cl_command_queue queue;
+} *ocl_core_t;
 
-    error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &parameter->image);
-    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &result);
-    error |= clSetKernelArg(kernel, 2, sizeof(int), &parameter->width);
-    error |= clSetKernelArg(kernel, 3, sizeof(int), &parameter->height);
-    error |= clSetKernelArg(kernel, 4, sizeof(int), &parameter->pitch_bytes);
-
-    if (error != CL_SUCCESS)
-    {
-        logging_log_message("Error: Setting histogram arguments failed!");
-    }
-}
-
-void ocl_set_parameter_brightest_spot(const cl_kernel kernel, const ocl_image_operation_t parameter, int cx, int cy, int rw, int rh, int sub_r, cl_mem result)
+typedef struct ocl_image_operation
 {
-    cl_int error = CL_SUCCESS;
+    cl_mem image;
+    cl_uint width;
+    cl_uint height;
+    cl_uint pitch_bytes;
+    size_t size_bytes;
+} *ocl_image_operation_t;
 
-    error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &parameter->image);
-    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &result);
-    error |= clSetKernelArg(kernel, 2, sizeof(int), &parameter->width);
-    error |= clSetKernelArg(kernel, 3, sizeof(int), &parameter->height);
-    error |= clSetKernelArg(kernel, 4, sizeof(int), &parameter->pitch_bytes);
-    error |= clSetKernelArg(kernel, 5, sizeof(int), &cx);
-    error |= clSetKernelArg(kernel, 6, sizeof(int), &cy);
-    error |= clSetKernelArg(kernel, 7, sizeof(int), &rw);
-    error |= clSetKernelArg(kernel, 8, sizeof(int), &rh);
-    error |= clSetKernelArg(kernel, 9, sizeof(int), &sub_r);
+typedef cl_uint ocl_histogram_t[256];
 
-    if (error != CL_SUCCESS)
-    {
-        logging_log_message("Error: Setting brightest_spot arguments failed!");
-    }
-}
-
-/* Buffer-Factory */
-cl_mem ocl_create_buffer(const ocl_core_t ocl, ocl_buf_type_t type, size_t size_bytes, void *host_ptr)
+typedef enum
 {
-	cl_mem_flags flags = CL_MEM_READ_WRITE;
-	if (type == OCL_BUF_READ_ONLY) flags = CL_MEM_READ_ONLY | (host_ptr ? CL_MEM_COPY_HOST_PTR : 0);
-	if (type == OCL_BUF_WRITE_ONLY) flags = CL_MEM_WRITE_ONLY;
-	if (type == OCL_BUF_READ_WRITE) flags = CL_MEM_READ_WRITE | (host_ptr ? CL_MEM_COPY_HOST_PTR : 0);
+    OCL_BUF_READ_ONLY,
+    OCL_BUF_WRITE_ONLY,
+    OCL_BUF_READ_WRITE
+} ocl_buf_type_t;
 
-	cl_int error = CL_SUCCESS;
-	cl_mem buffer = clCreateBuffer(ocl->context, flags, size_bytes, host_ptr, &error);
-	if (error != CL_SUCCESS) logging_log_message("ocl_create_buffer failed");
-	return buffer;
-}
+bool ocl_initialize(const ocl_core_t ocl);
+bool ocl_compile(const ocl_core_t ocl);
+void ocl_deinitialize(const ocl_core_t ocl);
+cl_mem ocl_create_input_buffer_from_memory(const ocl_core_t ocl, uint8_t* data, size_t size_bytes);
+cl_mem ocl_create_output_buffer(const ocl_core_t ocl, size_t size_bytes);
+const char* ocl_get_sources(void);
+bool ocl_load_kernels(const ocl_core_t ocl);
+cl_mem ocl_create_buffer(const ocl_core_t ocl, ocl_buf_type_t type, size_t size_bytes, void *host_ptr);
+bool ocl_enqueue_kernel(const ocl_core_t ocl, cl_kernel kernel, size_t global_work_size, size_t local_work_size);
+cl_kernel ocl_get_kernel(const ocl_core_t ocl, ocl_kernel_t kernel);
+void ocl_finish_frame(const ocl_core_t ocl);
 
-/* Generischer Kernel-Launcher */
-bool ocl_enqueue_kernel(const ocl_core_t ocl, cl_kernel kernel, size_t global_work_size, size_t local_work_size)
-{
-	cl_int error = clEnqueueNDRangeKernel(ocl->queue, kernel, 1, NULL, &global_work_size, &local_work_size, 0, NULL, NULL);
-	if (error != CL_SUCCESS) { logging_log_message("clEnqueueNDRangeKernel failed"); return false; }
-	error = clFinish(ocl->queue);
-	if (error != CL_SUCCESS) { logging_log_message("clFinish failed"); return false; }
-	return true;
-}
+void ocl_set_parameter_subtract_images(const cl_kernel kernel, const ocl_image_operation_t parameter, cl_mem b, cl_mem result);
+void ocl_set_parameter_histogram(const cl_kernel kernel, const ocl_image_operation_t parameter, cl_mem result);
+void ocl_set_parameter_brightest_spot(const cl_kernel kernel, const ocl_image_operation_t parameter, int cx, int cy, int rw, int rh, int sub_r, cl_mem result);
+void ocl_set_parameter_matvec_bf16(const cl_kernel kernel, cl_mem y, cl_mem x, cl_mem W, int in_dim, int out_dim);
 
-/* Parameter-Setter für Matvec */
-void ocl_set_parameter_matvec_bf16(const cl_kernel kernel, cl_mem y, cl_mem x, cl_mem W, int in_dim, int out_dim)
-{
-	cl_int error = CL_SUCCESS;
-	error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &y);
-	error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &x);
-	error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &W);
-	error |= clSetKernelArg(kernel, 3, sizeof(int), &in_dim);
-	error |= clSetKernelArg(kernel, 4, sizeof(int), &out_dim);
-	if (error != CL_SUCCESS) logging_log_message("ocl_set_parameter_matvec_bf16 failed");
-}
-
-cl_kernel ocl_get_kernel(const ocl_core_t ocl, ocl_kernel_t kernel)
-{
-	if (kernel < OCL_KERNEL_COUNT) return ocl->program.kernels[kernel];
-	return NULL;
-}
-
-bool ocl_load_kernels(const ocl_core_t ocl)
-{
-	bool is_ok = true;
-	for (int i = 0; i < OCL_KERNEL_COUNT; ++i)
-	{
-		cl_int error = CL_SUCCESS;
-		ocl->program.kernels[i] = clCreateKernel(ocl->program.binary, _ocl_kernel_names[i], &error);
-		if (error != CL_SUCCESS) { is_ok = false; break; }
-	}
-	return is_ok;
-}
-
-/* Builder: fasst alle Einzelquellen zu einem String zusammen */
-private char *_ocl_build_source(void)
-{
-	const char *parts[] =
-	{
-		ocl_get_source_subtract_images(),
-		ocl_get_source_histogram(),
-		ocl_get_source_brightest_spot(),
-		ocl_get_source_matvec_bf16(),
-		ocl_get_source_matvec_bf16_fused(),
-		ocl_get_source_matvec_f32(),
-		ocl_get_source_sd_attention_f32(),
-		ocl_get_source_sd_output_proj_f32(),
-		ocl_get_source_sd_attention_out_f32(),
-		ocl_get_source_sd_norm_qkv_f32(),
-		ocl_get_source_iwt_update(),
-		ocl_get_source_q_field(),
-		ocl_get_source_iwt_update_motion(),
-		NULL
-	};	
-
-	size_t total = 0;
-	for (int i = 0; parts[i]; ++i) total += strlen(parts[i]);
-
-	char *source = (char *)malloc(total + 1);
-	if (!source) return NULL;
-	source[0] = '\0';
-	for (int i = 0; parts[i]; ++i) strcat(source, parts[i]);
-
-	return source;
-}
-
-void ocl_set_parameter_iwt_update(
+void ocl_set_parameter_compute_flux(
     const cl_kernel kernel,
-    cl_mem nodes,
-    cl_mem adjacency,
-    cl_mem flows,
-    cl_mem q_potential,
-    double D,
-    double l0,
-    double G,
-    double k,
-    double Q,
-    uint32_t num_nodes,
+    cl_mem I,
+    cl_mem K,
+    cl_mem J,
+    uint32_t num_nodes
+);
+
+void ocl_set_parameter_compute_q(
+    const cl_kernel kernel,
+    cl_mem J,
+    cl_mem Q,
+    uint32_t num_nodes
+);
+
+void ocl_set_parameter_update_I(
+    const cl_kernel kernel,
+    cl_mem I,
+    cl_mem J,
     double dt,
-	uint32_t offset
-)
-{
-    cl_int error = CL_SUCCESS;
-    error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &nodes);
-    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &adjacency);
-    error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &flows);
-    error |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &q_potential);
-    error |= clSetKernelArg(kernel, 4, sizeof(double), &D);
-    error |= clSetKernelArg(kernel, 5, sizeof(double), &l0);
-    error |= clSetKernelArg(kernel, 6, sizeof(double), &G);
-    error |= clSetKernelArg(kernel, 7, sizeof(double), &k);
-    error |= clSetKernelArg(kernel, 8, sizeof(double), &Q);
-    error |= clSetKernelArg(kernel, 9, sizeof(uint32_t), &num_nodes);
-    error |= clSetKernelArg(kernel, 10, sizeof(double), &dt);
-    error |= clSetKernelArg(kernel, 11, sizeof(uint32_t), &offset);
-    if (error != CL_SUCCESS) {
-        fprintf(stderr, "Fehler: Setzen der Kernel-Argumente fehlgeschlagen.\n");
-    }
-}
+    uint32_t num_nodes
+);
 
-void ocl_set_parameter_q_field(
+void ocl_set_parameter_update_K(
     const cl_kernel kernel,
-    cl_mem nodes,
-    cl_mem sqrt_rho,
-    cl_mem q_potential,
-    uint32_t num_nodes,
-    double hbar,
-    double mass,
-    uint32_t offset
-)
-{
-    cl_int error = CL_SUCCESS;
-    error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &nodes);
-    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &sqrt_rho);
-    error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &q_potential);
-    error |= clSetKernelArg(kernel, 3, sizeof(uint32_t), &num_nodes);
-    error |= clSetKernelArg(kernel, 4, sizeof(double), &hbar);
-    error |= clSetKernelArg(kernel, 5, sizeof(double), &mass);
-    error |= clSetKernelArg(kernel, 6, sizeof(uint32_t), &offset);
-    if (error != CL_SUCCESS) {
-        logging_log_message("Fehler: Setzen der Q-Feld-Argumente fehlgeschlagen.");
-    }
-}
-
-void ocl_set_parameter_iwt_update_motion(
-    const cl_kernel kernel,
-    cl_mem nodes,
-    cl_mem x, cl_mem y, cl_mem z,
-    cl_mem vx, cl_mem vy, cl_mem vz,
-    cl_mem adjacency,
-    cl_mem q_potential,
-    double D, double l0, double G, double k, double Q,
-    uint32_t num_nodes,
+    cl_mem K,
+    cl_mem I,
+    double eta,
+    double lambda,
     double dt,
-    uint32_t offset
-)
-{
-    cl_int error = CL_SUCCESS;
-    error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &nodes);
-    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &x);
-    error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &y);
-    error |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &z);
-    error |= clSetKernelArg(kernel, 4, sizeof(cl_mem), &vx);
-    error |= clSetKernelArg(kernel, 5, sizeof(cl_mem), &vy);
-    error |= clSetKernelArg(kernel, 6, sizeof(cl_mem), &vz);
-    error |= clSetKernelArg(kernel, 7, sizeof(cl_mem), &adjacency);
-    error |= clSetKernelArg(kernel, 8, sizeof(cl_mem), &q_potential);
-    error |= clSetKernelArg(kernel, 9, sizeof(double), &D);
-    error |= clSetKernelArg(kernel, 10, sizeof(double), &l0);
-    error |= clSetKernelArg(kernel, 11, sizeof(double), &G);
-    error |= clSetKernelArg(kernel, 12, sizeof(double), &k);
-    error |= clSetKernelArg(kernel, 13, sizeof(double), &Q);
-    error |= clSetKernelArg(kernel, 14, sizeof(uint32_t), &num_nodes);
-    error |= clSetKernelArg(kernel, 15, sizeof(double), &dt);
-    error |= clSetKernelArg(kernel, 16, sizeof(uint32_t), &offset);
-    if (error != CL_SUCCESS) {
-        fprintf(stderr, "Fehler: Setzen der Motion-Update-Argumente fehlgeschlagen.\n");
-    }
-}
-
-/* ocl_get_sources() nutzt den Builder */
-const char *ocl_get_sources(void)
-{
-	/* Achtung: Aufrufer muss freigeben! */
-	/* Für Abwärtskompatibilität mit Skyview: */
-	static char *cached = NULL;
-	free(cached);
-	cached = _ocl_build_source();
-	return cached;
-}
-
-/* ocl_compile nutzt den Builder direkt */
-bool ocl_compile(const ocl_core_t ocl)
-{
-	bool is_ok = false;
-	cl_int error = CL_SUCCESS;
-
-	char *source = _ocl_build_source();
-	if (!source) return false;
-
-	ocl->program.binary = clCreateProgramWithSource(ocl->context, 1, (const char **)&source, NULL, &error);
-	free(source);
-
-	if (error == CL_SUCCESS)
-	{
-		error = clBuildProgram(ocl->program.binary, 1, ocl->devices.ids, NULL, NULL, NULL);
-		if (error == CL_SUCCESS)
-		{
-			is_ok = true;
-			logging_log_message("OpenCL is initialized.");
-		}
-		else
-		{
-			fprintf(stderr, "Fehler: Programm konnte nicht kompiliert werden (%d)\n", error);
-			size_t log_size;
-			clGetProgramBuildInfo(ocl->program.binary, ocl->devices.ids[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
-			char* log = malloc(log_size);
-			clGetProgramBuildInfo(ocl->program.binary, ocl->devices.ids[0], CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
-			fprintf(stderr, "Build-Log:\n%s\n", log);
-			free(log);
-		}
-	}
-
-	return is_ok;
-}
-
-void ocl_finish_frame(const ocl_core_t ocl)
-{
-	clFinish(ocl->queue);
-}
+    uint32_t num_nodes,
+    uint32_t offset_i,
+    uint32_t offset_j,
+    uint32_t batch_i,
+    uint32_t batch_j
+);
