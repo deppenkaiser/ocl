@@ -19,7 +19,8 @@ const char *_ocl_kernel_names[OCL_KERNEL_COUNT] =
     "sd_output_proj_f32",
     "sd_attention_out_f32",
     "sd_norm_qkv_f32",
-	"iwt_flux"
+	"iwt_flux",
+	"iwt_q"
 };
 
 bool ocl_initialize(const ocl_core_t ocl)
@@ -187,6 +188,7 @@ static char *_ocl_build_source(void)
         ocl_get_source_sd_attention_out_f32(),
         ocl_get_source_sd_norm_qkv_f32(),
 		ocl_get_source_iwt_flux(),
+		ocl_get_source_iwt_q(),
         NULL
     };
 
@@ -246,78 +248,4 @@ bool ocl_compile(const ocl_core_t ocl)
 void ocl_finish_frame(const ocl_core_t ocl)
 {
     clFinish(ocl->queue);
-}
-
-void ocl_set_parameter_compute_flux(
-    const cl_kernel kernel,
-    cl_mem I,
-    cl_mem K,
-    cl_mem J,
-    uint32_t num_nodes
-)
-{
-    cl_int error = CL_SUCCESS;
-    error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &I);
-    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &K);
-    error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &J);
-    error |= clSetKernelArg(kernel, 3, sizeof(uint32_t), &num_nodes);
-    if (error != CL_SUCCESS) logging_log_message("compute_flux parameter set failed");
-}
-
-void ocl_set_parameter_compute_q(
-    const cl_kernel kernel,
-    cl_mem J,
-    cl_mem Q,
-    uint32_t num_nodes
-)
-{
-    cl_int error = CL_SUCCESS;
-    error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &J);
-    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &Q);
-    error |= clSetKernelArg(kernel, 2, sizeof(uint32_t), &num_nodes);
-    if (error != CL_SUCCESS) logging_log_message("compute_q parameter set failed");
-}
-
-void ocl_set_parameter_update_I(
-    const cl_kernel kernel,
-    cl_mem I,
-    cl_mem J,
-    double dt,
-    uint32_t num_nodes
-)
-{
-    cl_int error = CL_SUCCESS;
-    error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &I);
-    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &J);
-    error |= clSetKernelArg(kernel, 2, sizeof(double), &dt);
-    error |= clSetKernelArg(kernel, 3, sizeof(uint32_t), &num_nodes);
-    if (error != CL_SUCCESS) logging_log_message("update_I parameter set failed");
-}
-
-void ocl_set_parameter_update_K(
-    const cl_kernel kernel,
-    cl_mem K,
-    cl_mem I,
-    double eta,
-    double lambda,
-    double dt,
-    uint32_t num_nodes,
-    uint32_t offset_i,
-    uint32_t offset_j,
-    uint32_t batch_i,
-    uint32_t batch_j
-)
-{
-    cl_int error = CL_SUCCESS;
-    error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &K);
-    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &I);
-    error |= clSetKernelArg(kernel, 2, sizeof(double), &eta);
-    error |= clSetKernelArg(kernel, 3, sizeof(double), &lambda);
-    error |= clSetKernelArg(kernel, 4, sizeof(double), &dt);
-    error |= clSetKernelArg(kernel, 5, sizeof(uint32_t), &num_nodes);
-    error |= clSetKernelArg(kernel, 6, sizeof(uint32_t), &offset_i);
-    error |= clSetKernelArg(kernel, 7, sizeof(uint32_t), &offset_j);
-    error |= clSetKernelArg(kernel, 8, sizeof(uint32_t), &batch_i);
-    error |= clSetKernelArg(kernel, 9, sizeof(uint32_t), &batch_j);
-    if (error != CL_SUCCESS) logging_log_message("update_K parameter set failed");
 }

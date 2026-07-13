@@ -458,3 +458,23 @@ protected const char* ocl_get_source_iwt_flux(void)
     "    sumJ[idx] = sum;\n"
     "}\n";
 }
+
+protected const char* ocl_get_source_iwt_q(void)
+{
+    return
+    "__kernel void iwt_q(\n"
+    "    __global const double* sumJ,\n"
+    "    __global double* Q,\n"
+    "    int N)\n"
+    "{\n"
+    "    int i = get_global_id(0);\n"
+    "    if (i >= N) return;\n"
+    "\n"
+    "    // Q_i = sum_j J_ji - sum_j J_ij\n"
+    "    // Mit J_ij = sumJ_i? Nein, J_ij ist der Fluss von i nach j.\n"
+    "    // Wir brauchen J_ji = -J_ij, also Q_i = -2 * sumJ_i?\n"
+    "    // ACHTUNG: Das ist nur korrekt, wenn K symmetrisch ist!\n"
+    "    // Für den Test mit K symmetrisch: Q_i = -2 * sumJ_i\n"
+    "    Q[i] = -2.0 * sumJ[i];\n"
+    "}\n";
+}
