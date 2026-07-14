@@ -459,23 +459,42 @@ protected const char* ocl_get_source_iwt_flux(void)
     "}\n";
 }
 
+// kernels.c – neuer OpenCL-Kernel für Q
+
 protected const char* ocl_get_source_iwt_q(void)
 {
     return
     "__kernel void iwt_q(\n"
-    "    __global const double* sumJ,\n"
+    "    __global const double* I,\n"
     "    __global double* Q,\n"
-    "    int N)\n"
+    "    int N,\n"
+    "    double sum_I,\n"
+    "    double prefactor)\n"
     "{\n"
     "    int i = get_global_id(0);\n"
     "    if (i >= N) return;\n"
     "\n"
-    "    // Q_i = sum_j J_ji - sum_j J_ij\n"
-    "    // Mit J_ij = sumJ_i? Nein, J_ij ist der Fluss von i nach j.\n"
-    "    // Wir brauchen J_ji = -J_ij, also Q_i = -2 * sumJ_i?\n"
-    "    // ACHTUNG: Das ist nur korrekt, wenn K symmetrisch ist!\n"
-    "    // Für den Test mit K symmetrisch: Q_i = -2 * sumJ_i\n"
-    "    Q[i] = -2.0 * sumJ[i];\n"
+    "    // 1. rho_i = I_i / sum_I\n"
+    "    double rho_i = I[i] / sum_I;\n"
+    "    if (rho_i < 1e-30) { Q[i] = 0.0; return; }\n"
+    "    double sqrt_rho_i = sqrt(rho_i);\n"
+    "\n"
+    "    // 2. Diskreter Laplace von sqrt(rho)\n"
+    "    double laplace = 0.0;\n"
+    "    for (int j = 0; j < N; j++)\n"
+    "    {\n"
+    "        if (i == j) continue;\n"
+    "        double rho_j = I[j] / sum_I;\n"
+    "        double sqrt_rho_j = sqrt(rho_j);\n"
+    "        double dist = (double)(j - i);\n"
+    "        if (dist < 0.0) dist = -dist;\n"
+    "        if (dist < 1.0) dist = 1.0;\n"
+    "        double weight = 1.0 / (dist * dist);\n"
+    "        laplace += weight * (sqrt_rho_j - sqrt_rho_i);\n"
+    "    }\n"
+    "\n"
+    "    // 3. Q_i = prefactor * laplace / sqrt_rho_i\n"
+    "    Q[i] = prefactor * laplace / sqrt_rho_i;\n"
     "}\n";
 }
 
