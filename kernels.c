@@ -510,7 +510,7 @@ protected const char* ocl_get_source_iwt_update_info(void)
     "    int i = get_global_id(0);\n"
     "    if (i >= N) return;\n"
     "\n"
-    "    I[i] = I[i] + sumJ[i] * DT;\n"
+    "    I[i] = I[i] - sumJ[i] * DT;\n"
     "}\n";
 }
 
