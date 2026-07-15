@@ -15,4 +15,3 @@ protected_import(const char*, ocl_get_source_sd_norm_qkv_f32(void));
 protected_import(const char*, ocl_get_source_iwt_flux(void));
 protected_import(const char*, ocl_get_source_iwt_q(void));
 protected_import(const char*, ocl_get_source_iwt_update_info(void));
-protected_import(const char*, ocl_get_source_iwt_update_coupling(void));
