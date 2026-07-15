@@ -574,34 +574,3 @@ protected const char* ocl_get_source_iwt_update_coupling(void)
     "    }\n"
     "}\n";
 }
-
-protected const char* ocl_get_source_iwt_q_dynamics(void)
-{
-    return
-    "__kernel void iwt_q_dynamics(\n"
-    "    __global double* Q,\n"
-    "    __global const double* I,\n"
-    "    __global const double* K,\n"
-    "    double I_min,\n"
-    "    double DT,\n"
-    "    double ETA_Q,\n"
-    "    double LAMBDA_Q,\n"
-    "    double GAMMA_Q,\n"
-    "    int N)\n"
-    "{\n"
-    "    int i = get_global_id(0);\n"
-    "    if (i >= N) return;\n"
-    "\n"
-    "    double Qi = Q[i];\n"
-    "    double Ii = I[i];\n"
-    "\n"
-    "    // Q-Dynamik (Weber-ähnlich)\n"
-    "    double sum_Q_diff = 0.0;\n"
-    "    for (int j = 0; j < N; j++)\n"
-    "    {\n"
-    "        sum_Q_diff += K[i * N + j] * (Qi - Q[j]);\n"
-    "    }\n"
-    "\n"
-    "    Q[i] = Qi + ETA_Q * ((Ii - I_min) - LAMBDA_Q * Qi) * DT - GAMMA_Q * sum_Q_diff * DT;\n"
-    "}\n";
-}

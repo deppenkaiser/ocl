@@ -22,8 +22,7 @@ const char *_ocl_kernel_names[OCL_KERNEL_COUNT] =
 	"iwt_flux",
 	"iwt_q",
 	"iwt_update_info",
-	"iwt_update_coupling",
-	"iwt_q_dynamics"
+	"iwt_update_coupling"
 };
 
 bool ocl_initialize(const ocl_core_t ocl)
@@ -200,7 +199,6 @@ static char *_ocl_build_source(void)
 		ocl_get_source_iwt_q(),
 		ocl_get_source_iwt_update_info(),
 		ocl_get_source_iwt_update_coupling(),
-		ocl_get_source_iwt_q_dynamics(),
         NULL
     };
 
