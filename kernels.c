@@ -499,6 +499,7 @@ protected const char* ocl_get_source_iwt_update_info(void)
     return
     "__kernel void iwt_update_info(\n"
     "    __global double* I,\n"
+    "    __global const double* I_prev,\n"
     "    __global const double* sumJ,\n"
     "    double DT,\n"
     "    int N)\n"
@@ -506,7 +507,9 @@ protected const char* ocl_get_source_iwt_update_info(void)
     "    int i = get_global_id(0);\n"
     "    if (i >= N) return;\n"
     "\n"
-    "    I[i] = I[i] - sumJ[i] * DT;\n"
+    "    // Euler-Lagrange: I_new = 2*I - I_prev + DT^2 * sumJ\n"
+    "    double I_new = 2.0 * I[i] - I_prev[i] + DT * DT * sumJ[i];\n"
+    "    I[i] = I_new;\n"
     "}\n";
 }
 
