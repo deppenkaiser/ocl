@@ -433,6 +433,10 @@ protected const char* ocl_get_source_sd_norm_qkv_f32(void)
 	"}\n";
 }
 
+// ============================================================
+// IWT-KERNELS
+// ============================================================
+
 protected const char* ocl_get_source_iwt_flux(void)
 {
     return
@@ -519,6 +523,10 @@ protected const char* ocl_get_source_iwt_q(void)
     "}\n";
 }
 
+// ============================================================
+// NEU: IWT UPDATE KERNEL MIT QUANTENFLUKTUATIONEN (Anhang O & P)
+// ============================================================
+
 protected const char* ocl_get_source_iwt_update_info(void)
 {
     return
@@ -529,6 +537,8 @@ protected const char* ocl_get_source_iwt_update_info(void)
     "    __global const double* I_phase_prev,\n"
     "    __global const double* sumJ,\n"
     "    __global const double* Q,\n"
+    "    __global const double* xi_real,\n"
+    "    __global const double* xi_imag,\n"
     "    int N,\n"
     "    int width,\n"
     "    double DT,\n"
@@ -537,29 +547,51 @@ protected const char* ocl_get_source_iwt_update_info(void)
     "    double omega_0,\n"
     "    double D,\n"
     "    double Z_0,\n"
-    "    double I_avg)\n"
+    "    double I_avg,\n"
+    "    int enable_fluctuations)\n"
     "{\n"
     "    int i = get_global_id(0);\n"
     "    if (i >= N) return;\n"
     "\n"
+    "    // ============================================================\n"
+    "    // 1. FLUSS (KONTINUITÄTSGLEICHUNG) – Bestehend\n"
+    "    // ============================================================\n"
     "    double flow = sumJ[i];\n"
     "    double abs_old = I_abs[i];\n"
-    "\n"
-    "    // 1. Kontinuitätsgleichung – das ist der einzige Weg, I zu ändern\n"
     "    double abs_new = abs_old - DT * flow;\n"
     "\n"
-    "    // 2. Phase – bleibt unverändert\n"
+    "    // ============================================================\n"
+    "    // 2. QUANTENPOTENTIAL (PHASE) – Bestehend\n"
+    "    // ============================================================\n"
     "    double phase_new = I_phase[i] + DT * Q[i];\n"
     "\n"
-    "    // 3. Phasen-Faltung\n"
+    "    // ============================================================\n"
+    "    // 3. NEU: QUANTENFLUKTUATIONEN (Unschärfe-Term aus Anhang O/P)\n"
+    "    //    ∆I = √(ℏ/(2T)) · ξ,  ξ ~ N(0,1)\n"
+    "    // ============================================================\n"
+    "    if (enable_fluctuations != 0)\n"
+    "    {\n"
+    "        // Die Fluktuationen wirken auf beide Komponenten:\n"
+    "        // - Amplitude: abs_old + xi_real\n"
+    "        // - Phase: phase_new + xi_imag\n"
+    "        // (Die xi-Werte sind bereits mit √(ℏ/(2T)) skaliert)\n"
+    "        abs_new += xi_real[i];\n"
+    "        phase_new += xi_imag[i];\n"
+    "    }\n"
+    "\n"
+    "    // ============================================================\n"
+    "    // 4. PHASEN-FALTUNG – Bestehend\n"
+    "    // ============================================================\n"
     "    double PI = 4.0 * atan(1.0);\n"
     "    double twoPI = 2.0 * PI;\n"
     "    phase_new = fmod(phase_new, twoPI);\n"
     "    if (phase_new > PI) phase_new = phase_new - twoPI;\n"
     "    if (phase_new < -PI) phase_new = phase_new + twoPI;\n"
     "\n"
-    "    // 4. KEINE Begrenzung – die Erhaltung sorgt dafür, dass I nicht negativ wird\n"
-    "    // KEINE Reflexion als zusätzlicher Term – sie muss aus dem Fluss folgen\n"
+    "    // ============================================================\n"
+    "    // 5. KEINE BEGRENZUNG – die Erhaltung sorgt dafür,\n"
+    "    //    dass I nicht negativ wird\n"
+    "    // ============================================================\n"
     "\n"
     "    I_abs[i] = abs_new;\n"
     "    I_phase[i] = phase_new;\n"
