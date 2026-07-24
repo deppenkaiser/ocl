@@ -22,7 +22,8 @@ const char *_ocl_kernel_names[OCL_KERNEL_COUNT] =
 	"iwt_flux",
 	"iwt_q",
 	"iwt_update_info",
-	"iwt_apply_fluctuations"
+	"iwt_apply_fluctuations",
+	"iwt_mass_charge"
 };
 
 bool ocl_initialize(const ocl_core_t ocl)
@@ -199,6 +200,7 @@ static char *_ocl_build_source(void)
 		ocl_get_source_iwt_q(),
 		ocl_get_source_iwt_update_info(),
 		ocl_get_source_iwt_apply_fluctuations(),
+		ocl_get_source_iwt_mass_charge(),
         NULL
     };
 
