@@ -639,3 +639,29 @@ protected const char* ocl_get_source_iwt_mass_charge(void)
     "}\n";
 }
 
+protected const char* ocl_get_source_iwt_boundary_damping(void)
+{
+    return
+    "__kernel void iwt_boundary_damping(\n"
+    "    __global double* I_real,\n"
+    "    __global double* I_imag,\n"
+    "    __global double* I_phase,\n"
+    "    int N,\n"
+    "    double damping_factor,\n"
+    "    int boundary_width)\n"
+    "{\n"
+    "    int i = get_global_id(0);\n"
+    "    if (i >= N) return;\n"
+    "\n"
+    "    // Prüfen, ob Knoten am Rand liegt\n"
+    "    int is_boundary = (i < boundary_width) || (i >= N - boundary_width);\n"
+    "\n"
+    "    if (is_boundary)\n"
+    "    {\n"
+    "        // Energieabgabe am Rand (Rotverschiebung)\n"
+    "        I_real[i] *= damping_factor;\n"
+    "        I_imag[i] *= damping_factor;\n"
+    "        // Phase bleibt unverändert\n"
+    "    }\n"
+    "}\n";
+}
