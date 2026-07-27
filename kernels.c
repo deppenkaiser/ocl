@@ -433,9 +433,9 @@ protected const char* ocl_get_source_sd_norm_qkv_f32(void)
 	"}\n";
 }
 
-// ============================================================
-// IWT-KERNELS
-// ============================================================
+// ============================================================================
+// IWT-KERNEL: FLUSS (Weber-Kern)
+// ============================================================================
 
 protected const char* ocl_get_source_iwt_flux(void)
 {
@@ -451,7 +451,6 @@ protected const char* ocl_get_source_iwt_flux(void)
     "    int i = get_global_id(0);\n"
     "    if (i >= N) return;\n"
     "\n"
-    "    // Amplitude |I_i| = sqrt(Re_i² + Im_i²)\n"
     "    double Re_i = I_real[i];\n"
     "    double Im_i = I_imag[i];\n"
     "    double abs_i = sqrt(Re_i * Re_i + Im_i * Im_i + 1e-30);\n"
@@ -470,14 +469,16 @@ protected const char* ocl_get_source_iwt_flux(void)
     "\n"
     "        double Kij = K[i * N + j];\n"
     "\n"
-    "        // Fluss aus der Dichte rho = |I|²\n"
-    "        // KEINE Reflexion (R=0), KEINE Transmission (T=1)\n"
     "        sum += Kij * (rho_i - rho_j);\n"
     "    }\n"
     "\n"
     "    sumJ[i] = sum;\n"
     "}\n";
 }
+
+// ============================================================================
+// IWT-KERNEL: BOHM-POTENTIAL Q
+// ============================================================================
 
 protected const char* ocl_get_source_iwt_q(void)
 {
@@ -501,7 +502,6 @@ protected const char* ocl_get_source_iwt_q(void)
     "    if (rho_i < 1e-30) { Q[i] = 0.0; return; }\n"
     "    double sqrt_rho_i = sqrt(rho_i);\n"
     "\n"
-    "    // Laplace von sqrt(rho) berechnen\n"
     "    double laplace = 0.0;\n"
     "    for (int j = 0; j < N; j++)\n"
     "    {\n"
@@ -518,6 +518,10 @@ protected const char* ocl_get_source_iwt_q(void)
     "    Q[i] = prefactor * laplace / sqrt_rho_i;\n"
     "}\n";
 }
+
+// ============================================================================
+// IWT-KERNEL: KONTINUITÄTS-UPDATE
+// ============================================================================
 
 protected const char* ocl_get_source_iwt_update_info(void)
 {
@@ -539,30 +543,28 @@ protected const char* ocl_get_source_iwt_update_info(void)
     "    double abs_old = sqrt(Re * Re + Im * Im + 1e-30);\n"
     "    double rho_old = abs_old * abs_old;\n"
     "\n"
-    "    // Kontinuitätsgleichung für rho = |I|²\n"
     "    double flow = sumJ[i];\n"
     "    double rho_new = rho_old - DT * flow;\n"
     "\n"
-    "    // Phase: Q wirkt auf die Phase\n"
     "    double phase_new = I_phase[i] + DT * Q[i];\n"
     "\n"
-    "    // Phasen-Faltung\n"
     "    double PI = 4.0 * atan(1.0);\n"
     "    double twoPI = 2.0 * PI;\n"
     "    phase_new = fmod(phase_new, twoPI);\n"
     "    if (phase_new > PI) phase_new = phase_new - twoPI;\n"
     "    if (phase_new < -PI) phase_new = phase_new + twoPI;\n"
     "\n"
-    "    // Neue Real- und Imaginärteile\n"
     "    double abs_new = sqrt(fmax(rho_new, 0.0));\n"
-    "    double cos_phi = cos(phase_new);\n"
-    "    double sin_phi = sin(phase_new);\n"
     "\n"
-    "    I_real[i] = abs_new * cos_phi;\n"
-    "    I_imag[i] = abs_new * sin_phi;\n"
+    "    I_real[i] = abs_new * cos(phase_new);\n"
+    "    I_imag[i] = abs_new * sin(phase_new);\n"
     "    I_phase[i] = phase_new;\n"
     "}\n";
 }
+
+// ============================================================================
+// IWT-KERNEL: FLUKTUATIONEN ANWENDEN (Anhang P)
+// ============================================================================
 
 protected const char* ocl_get_source_iwt_apply_fluctuations(void)
 {
@@ -587,6 +589,10 @@ protected const char* ocl_get_source_iwt_apply_fluctuations(void)
     "}\n";
 }
 
+// ============================================================================
+// IWT-KERNEL: MASSE UND LADUNG
+// ============================================================================
+
 protected const char* ocl_get_source_iwt_mass_charge(void)
 {
     return
@@ -606,12 +612,10 @@ protected const char* ocl_get_source_iwt_mass_charge(void)
     "    double Im_i = I_imag[i];\n"
     "    double phase_i = I_phase[i];\n"
     "\n"
-    "    // === MASSE ===\n"
-    "    // m_i = delta * sum(|I_i - I_j|^2) über Nachbarn\n"
+    "    // MASSE (Kapitel 3, Gleichung 3.8)\n"
     "    double mass_sum = 0.0;\n"
     "    double charge_sum = 0.0;\n"
     "\n"
-    "    // Einfache 1D-Nachbarschaft (kann später erweitert werden)\n"
     "    for (int j = -1; j <= 1; j++)\n"
     "    {\n"
     "        if (j == 0) continue;\n"
@@ -624,8 +628,7 @@ protected const char* ocl_get_source_iwt_mass_charge(void)
     "        double diff_im = Im_i - Im_n;\n"
     "        mass_sum += diff_re * diff_re + diff_im * diff_im;\n"
     "\n"
-    "        // === LADUNG ===\n"
-    "        // q = divergence der Phase\n"
+    "        // LADUNG (Kapitel 3, Gleichung 3.4)\n"
     "        double phase_n = I_phase[n];\n"
     "        double diff_phase = phase_n - phase_i;\n"
     "        double PI = 4.0 * atan(1.0);\n"
@@ -639,60 +642,81 @@ protected const char* ocl_get_source_iwt_mass_charge(void)
     "}\n";
 }
 
+// ============================================================================
+// IWT-KERNEL: ROTVERSCHIEBUNG ALS ENERGIESSENKE (Anhang Q)
+// ============================================================================
+
 protected const char* ocl_get_source_iwt_redshift_damping(void)
 {
     return
     "__kernel void iwt_redshift_damping(\n"
     "    __global double* I_real,\n"
     "    __global double* I_imag,\n"
+    "    __global double* I_phase,\n"
     "    int N,\n"
-    "    double G,\n"
-    "    double c,\n"
-    "    double l0)\n"
+    "    double l0,\n"
+    "    double D,\n"
+    "    double L_Q0,\n"
+    "    double delta)\n"
     "{\n"
     "    int i = get_global_id(0);\n"
     "    if (i >= N) return;\n"
     "\n"
-    "    // Fraktale Distanz vom Zentrum\n"
-    "    double r = (double)i * l0;\n"
-    "    double r_safe = fmax(r, l0);\n"
+    "    // ============================================================\n"
+    "    // 1. NUR RANDKNOTEN WERDEN TRANSFORMIERT\n"
+    "    // ============================================================\n"
+    "    if (i != 0 && i != N - 1) return;\n"
     "\n"
-    "    // Eingeschlossene Masse M(r) mit Prefix-Sum\n"
-    "    // (wird mit lokaler Arbeitsspeicher-Scan implementiert)\n"
-    "    double M_r = 0.0;\n"
-    "    for (int j = 0; j <= i; j++)\n"
-    "    {\n"
-    "        double Re_j = I_real[j];\n"
-    "        double Im_j = I_imag[j];\n"
-    "        M_r += Re_j * Re_j + Im_j * Im_j;\n"
+    "    // ============================================================\n"
+    "    // 2. AMPLITUDE BLEIBT KONSTANT (Informationserhaltung, Axiom 2)\n"
+    "    // ============================================================\n"
+    "    double Re_i = I_real[i];\n"
+    "    double Im_i = I_imag[i];\n"
+    "    double amplitude = sqrt(Re_i * Re_i + Im_i * Im_i + 1e-30);\n"
+    "\n"
+    "    // ============================================================\n"
+    "    // 3. MASSE BERECHNEN (Kapitel 3, Gleichung 3.8)\n"
+    "    // ============================================================\n"
+    "    double mass = 0.0;\n"
+    "\n"
+    "    if (i > 0) {\n"
+    "        double diff_re = Re_i - I_real[i-1];\n"
+    "        double diff_im = Im_i - I_imag[i-1];\n"
+    "        mass += diff_re * diff_re + diff_im * diff_im;\n"
     "    }\n"
-    "\n"
-    "    // Kumulative Rotverschiebung\n"
-    "    double delta_r = l0;\n"
-    "    double delta_z = (G / (c * c)) * (M_r / (r_safe * r_safe)) * delta_r;\n"
-    "\n"
-    "    // Dämpfung (kumulativ über alle vorherigen Knoten)\n"
-    "    double z_eff = 0.0;\n"
-    "    for (int j = 0; j <= i; j++)\n"
-    "    {\n"
-    "        double r_j = (double)j * l0;\n"
-    "        double r_safe_j = fmax(r_j, l0);\n"
-    "        double M_j = 0.0;\n"
-    "        for (int k = 0; k <= j; k++)\n"
-    "        {\n"
-    "            double Re_k = I_real[k];\n"
-    "            double Im_k = I_imag[k];\n"
-    "            M_j += Re_k * Re_k + Im_k * Im_k;\n"
-    "        }\n"
-    "        z_eff += (G / (c * c)) * (M_j / (r_safe_j * r_safe_j)) * delta_r;\n"
+    "    if (i < N - 1) {\n"
+    "        double diff_re = Re_i - I_real[i+1];\n"
+    "        double diff_im = Im_i - I_imag[i+1];\n"
+    "        mass += diff_re * diff_re + diff_im * diff_im;\n"
     "    }\n"
+    "    mass *= delta;\n"
     "\n"
-    "    double damping_factor = 1.0 - z_eff;\n"
-    "    if (damping_factor < 0.0) damping_factor = 0.0;\n"
-    "    if (damping_factor > 1.0) damping_factor = 1.0;\n"
+    "    // ============================================================\n"
+    "    // 4. MASSENÄNDERUNG DURCH FRAKTALE GEOMETRIE (Anhang Q)\n"
+    "    // ============================================================\n"
+    "    // m_out = m_in * (l0 / L_Q0)^(D-3)\n"
+    "    double mass_factor = pow(l0 / L_Q0, D - 3.0);\n"
+    "    double mass_out = mass * mass_factor;\n"
     "\n"
-    "    double sqrt_damp = sqrt(damping_factor);\n"
-    "    I_real[i] *= sqrt_damp;\n"
-    "    I_imag[i] *= sqrt_damp;\n"
+    "    // ============================================================\n"
+    "    // 5. PHASE WIRD LANGSAMER (Energiesenke, Anhang Q)\n"
+    "    // ============================================================\n"
+    "    // φ_out = φ_in * (m_in / m_out)\n"
+    "    // Dadurch wird dφ/dt kleiner → Energie sinkt\n"
+    "    double phase_in = I_phase[i];\n"
+    "    double phase_out = phase_in * (mass / mass_out);\n"
+    "\n"
+    "    // ============================================================\n"
+    "    // 6. NEUE AMPLITUDE (unverändert) UND NEUE PHASE\n"
+    "    // ============================================================\n"
+    "    I_real[i] = amplitude * cos(phase_out);\n"
+    "    I_imag[i] = amplitude * sin(phase_out);\n"
+    "    I_phase[i] = phase_out;\n"
+    "\n"
+    "    // ============================================================\n"
+    "    // 7. INFORMATIONSERHALTUNG (Axiom 2)\n"
+    "    // ============================================================\n"
+    "    // |I_out|^2 = |I_in|^2 wird durch die konstante Amplitude sichergestellt\n"
+    "    // Die Energie wird ans Vakuum abgegeben (Energiesenke)\n"
     "}\n";
 }
