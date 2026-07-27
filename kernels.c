@@ -658,10 +658,12 @@ protected const char* ocl_get_source_iwt_boundary_damping(void)
     "\n"
     "    if (is_boundary)\n"
     "    {\n"
-    "        // Energieabgabe am Rand (Rotverschiebung)\n"
+    "        // Theoriekonforme Rotverschiebung (Anhang Q)\n"
+    "        // Die Amplitude wird nahezu vollständig abgebaut\n"
     "        I_real[i] *= damping_factor;\n"
     "        I_imag[i] *= damping_factor;\n"
     "        // Phase bleibt unverändert\n"
     "    }\n"
     "}\n";
 }
+
