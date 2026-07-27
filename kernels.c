@@ -489,7 +489,9 @@ protected const char* ocl_get_source_iwt_q(void)
     "    __global double* Q,\n"
     "    int N,\n"
     "    double sum_abs_sq,\n"
-    "    double prefactor)\n"
+    "    double prefactor,\n"
+    "    double epsilon,\n"
+    "    double Q_min)\n"
     "{\n"
     "    int i = get_global_id(0);\n"
     "    if (i >= N) return;\n"
@@ -499,7 +501,11 @@ protected const char* ocl_get_source_iwt_q(void)
     "    double abs_i = sqrt(Re_i * Re_i + Im_i * Im_i + 1e-30);\n"
     "    double rho_i = abs_i * abs_i / (sum_abs_sq + 1e-30);\n"
     "\n"
-    "    if (rho_i < 1e-30) { Q[i] = 0.0; return; }\n"
+    "    if (rho_i < 1e-30) {\n"
+    "        Q[i] = Q_min;  // Neutrino-Hintergrund\n"
+    "        return;\n"
+    "    }\n"
+    "\n"
     "    double sqrt_rho_i = sqrt(rho_i);\n"
     "\n"
     "    double laplace = 0.0;\n"
@@ -515,7 +521,8 @@ protected const char* ocl_get_source_iwt_q(void)
     "        laplace += (sqrt_rho_j - sqrt_rho_i);\n"
     "    }\n"
     "\n"
-    "    Q[i] = prefactor * laplace / sqrt_rho_i;\n"
+    "    // Bohm-Potential mit Regularisierung und Neutrino-Hintergrund\n"
+    "    Q[i] = prefactor * laplace / (sqrt_rho_i + epsilon) + Q_min;\n"
     "}\n";
 }
 
