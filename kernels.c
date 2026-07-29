@@ -437,12 +437,13 @@ protected const char* ocl_get_source_sd_norm_qkv_f32(void)
 // IWT-KERNEL: FLUSS (Weber-Kern)
 // ============================================================================
 
-protected const char* ocl_get_source_iwt_flux(void)
+protected const char *ocl_get_source_iwt_flux(void)
 {
     return
     "__kernel void iwt_flux(\n"
     "    __global const double* I_real,\n"
     "    __global const double* I_imag,\n"
+    "    __global const double* Q,\n"
     "    __global const double* K,\n"
     "    __global double* sumJ,\n"
     "    int N,\n"
@@ -455,6 +456,7 @@ protected const char* ocl_get_source_iwt_flux(void)
     "    double Im_i = I_imag[i];\n"
     "    double abs_i = sqrt(Re_i * Re_i + Im_i * Im_i + 1e-30);\n"
     "    double rho_i = abs_i * abs_i;\n"
+    "    double Q_i = Q[i];\n"
     "\n"
     "    double sum = 0.0;\n"
     "\n"
@@ -466,10 +468,12 @@ protected const char* ocl_get_source_iwt_flux(void)
     "        double Im_j = I_imag[j];\n"
     "        double abs_j = sqrt(Re_j * Re_j + Im_j * Im_j + 1e-30);\n"
     "        double rho_j = abs_j * abs_j;\n"
+    "        double Q_j = Q[j];\n"
     "\n"
     "        double Kij = K[i * N + j];\n"
     "\n"
-    "        sum += Kij * (rho_i - rho_j);\n"
+    "        // FLUSS: Diffusion + Gradient von Q\n"
+    "        sum += Kij * (rho_i - rho_j) * (Q_i - Q_j);\n"
     "    }\n"
     "\n"
     "    sumJ[i] = sum;\n"
