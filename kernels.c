@@ -599,15 +599,12 @@ protected const char* ocl_get_source_iwt_apply_fluctuations(void)
     "    __global double* I_imag,\n"
     "    __global const double* xi_real,\n"
     "    __global const double* xi_imag,\n"
-    "    int N,\n"
-    "    int enable)\n"
+    "    int N)\n"
     "{\n"
     "    int i = get_global_id(0);\n"
     "    if (i >= N) return;\n"
-    "    if (enable) {\n"
-    "        I_real[i] += xi_real[i];\n"
-    "        I_imag[i] += xi_imag[i];\n"
-    "    }\n"
+	"    I_real[i] += xi_real[i];\n"
+    "    I_imag[i] += xi_imag[i];\n"
     "}\n";
 }
 
