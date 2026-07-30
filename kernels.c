@@ -437,6 +437,10 @@ protected const char* ocl_get_source_sd_norm_qkv_f32(void)
 // IWT-KERNEL: FLUSS (Weber-Kern)
 // ============================================================================
 
+// ============================================================================
+// IWT-KERNEL: FLUSS (Weber-Kern)
+// ============================================================================
+
 protected const char *ocl_get_source_iwt_flux(void)
 {
     return
@@ -464,20 +468,18 @@ protected const char *ocl_get_source_iwt_flux(void)
     "    {\n"
     "        if (j == i) continue;\n"
     "\n"
+    "        double Re_j = I_real[j];\n"
+    "        double Im_j = I_imag[j];\n"
+    "        double abs_j = sqrt(Re_j * Re_j + Im_j * Im_j + 1e-30);\n"
+    "        double rho_j = abs_j * abs_j;\n"
     "        double Q_j = Q[j];\n"
+    "\n"
     "        double Kij = K[i * N + j];\n"
     "\n"
     "        // ============================================================\n"
-    "        // FLUSS AUSSCHLIESSLICH DURCH Q-GRADIENTEN\n"
+    "        // J = K * (rho_i - rho_j) * (Q_i - Q_j)\n"
     "        // ============================================================\n"
-    "        // Alter Fluss: Kij * (rho_i - rho_j) * (Q_i - Q_j)\n"
-    "        // Neuer Fluss: Kij * (Q_i - Q_j)\n"
-    "        // Begründung: Q ist die Quelle der Struktur.\n"
-    "        //             Der Fluss wird durch den Gradienten von Q\n"
-    "        //             angetrieben – nicht durch die Dichte.\n"
-    "        // ============================================================\n"
-    "\n"
-    "        sum += Kij * (Q_i - Q_j);\n"
+    "        sum += Kij * (rho_i - rho_j) * (Q_i - Q_j);\n"
     "    }\n"
     "\n"
     "    sumJ[i] = sum;\n"
