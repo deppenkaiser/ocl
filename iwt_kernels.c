@@ -72,7 +72,9 @@ protected const char* ocl_get_source_iwt_q(void)
     "    __global double* Q,\n"
     "    int N,\n"
     "    double sum_abs_sq,\n"
-    "    double prefactor,\n"
+    "    double hbar,\n"
+    "    double m,\n"
+    "    double beta,\n"           // NEU: Bohm-Kopplungsstärke
     "    double epsilon,\n"
     "    double Q_min)\n"
     "{\n"
@@ -85,7 +87,7 @@ protected const char* ocl_get_source_iwt_q(void)
     "    double rho_i = abs_i * abs_i / (sum_abs_sq + 1e-30);\n"
     "\n"
     "    if (rho_i < 1e-30) {\n"
-    "        Q[i] = Q_min;  // Neutrino-Hintergrund\n"
+    "        Q[i] = Q_min;\n"
     "        return;\n"
     "    }\n"
     "\n"
@@ -104,7 +106,8 @@ protected const char* ocl_get_source_iwt_q(void)
     "        laplace += (sqrt_rho_j - sqrt_rho_i);\n"
     "    }\n"
     "\n"
-    "    // Bohm-Potential mit Regularisierung und Neutrino-Hintergrund\n"
+    "    // Bohm-Potential mit beta als Vorfaktor\n"
+    "    double prefactor = -beta * (hbar * hbar) / (2.0 * m);\n"
     "    Q[i] = prefactor * laplace / (sqrt_rho_i + epsilon) + Q_min;\n"
     "}\n";
 }
