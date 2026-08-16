@@ -1,5 +1,6 @@
 #include "ocl/ocl.h"
 #include "kernels.h"
+#include "iwt_kernels.h"
 
 #include <CL/cl.h>
 #include <logging/logging.h>

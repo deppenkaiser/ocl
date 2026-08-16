@@ -18,6 +18,7 @@ add_subdirectory(../api	${CMAKE_BINARY_DIR}/api_from_ocl)
 target_sources(ocl PRIVATE
 	ocl.c
 	kernels.c
+	iwt_kernels.c
 )
 
 target_include_directories(ocl PUBLIC
