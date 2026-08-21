@@ -26,8 +26,9 @@ target_include_directories(ocl PUBLIC
 )
 
 target_link_libraries(ocl
-	OpenCL::OpenCL
-	logging
-	threading
-	api
+	PUBLIC
+		OpenCL::OpenCL
+		logging
+		threading
+		api
 )
