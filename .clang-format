@@ -1,0 +1,41 @@
+BasedOnStyle: LLVM
+BreakBeforeBraces: Allman
+UseTab: Always
+TabWidth: 4
+IndentWidth: 4
+ColumnLimit: 0
+AlignAfterOpenBracket: Align
+
+# Erzwingt {} bei if/for/while (ab LLVM 15+)
+InsertBraces: true
+
+# Pointer-Stil: int* ptr
+PointerAlignment: Left
+
+# Keine einzeiligen Kontrollstrukturen
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortBlocksOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+
+# Weitere Optimierungen
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: AfterColon
+ConstructorInitializerIndentWidth: 4
+ContinuationIndentWidth: 4
+IndentCaseLabels: true
+IndentPPDirectives: AfterHash
+SpaceAfterCStyleCast: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeCtorInitializerColon: true
+AlignTrailingComments: true
+BreakBeforeBinaryOperators: NonAssignment
+BreakInheritanceList: AfterColon
+FixNamespaceComments: true
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+SortIncludes: true
+Standard: c++20
