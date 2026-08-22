@@ -154,9 +154,21 @@ cl_mem ocl_create_buffer(const ocl_core_t ocl, ocl_buf_type_t type, size_t size_
 bool ocl_enqueue_kernel(const ocl_core_t ocl, cl_kernel kernel, size_t global_work_size, size_t local_work_size)
 {
     cl_int error = clEnqueueNDRangeKernel(ocl->queue, kernel, 1, NULL, &global_work_size, &local_work_size, 0, NULL, NULL);
-    if (error != CL_SUCCESS) { logging_log_message("clEnqueueNDRangeKernel failed"); return false; }
+    if (error != CL_SUCCESS)
+    {
+        char msg[128];
+        snprintf(msg, sizeof(msg), "clEnqueueNDRangeKernel failed (Fehler %d, global=%zu, local=%zu)", error, global_work_size, local_work_size);
+        logging_log_message(msg);
+        return false;
+    }
     error = clFinish(ocl->queue);
-    if (error != CL_SUCCESS) { logging_log_message("clFinish failed"); return false; }
+    if (error != CL_SUCCESS)
+    {
+        char msg[64];
+        snprintf(msg, sizeof(msg), "clFinish failed (Fehler %d)", error);
+        logging_log_message(msg);
+        return false;
+    }
     return true;
 }
 
