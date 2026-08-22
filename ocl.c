@@ -31,61 +31,86 @@ const char *_ocl_kernel_names[OCL_KERNEL_COUNT] =
 bool ocl_initialize(const ocl_core_t ocl)
 {
     bool is_ok = false;
+    cl_int error;
 
-    if (clGetPlatformIDs(OCL_MAX_PLATFORMS, ocl->platforms.ids, &ocl->platforms.count) == CL_SUCCESS)
+    // Plattformen suchen
+    if (clGetPlatformIDs(OCL_MAX_PLATFORMS, ocl->platforms.ids, &ocl->platforms.count) != CL_SUCCESS)
     {
-        logging_log_message("OpenCL platforms found:");
+        logging_log_message("Fehler: Keine OpenCL-Plattformen gefunden");
+        return false;
+    }
 
-        for (size_t i = 0; i < ocl->platforms.count; ++i)
+    logging_log_message("OpenCL platforms found:");
+
+    // Plattform-Info ausgeben
+    for (size_t i = 0; i < ocl->platforms.count && ocl->platforms.ids[0] != NULL; ++i)
+    {
+        if (clGetPlatformInfo(ocl->platforms.ids[0], CL_PLATFORM_NAME, sizeof(ocl->platforms.info[i].name), ocl->platforms.info[i].name, NULL) == CL_SUCCESS)
         {
-            if (clGetPlatformInfo(ocl->platforms.ids[0], CL_PLATFORM_NAME, sizeof(ocl->platforms.info[i].name), ocl->platforms.info[i].name, NULL) == CL_SUCCESS)
-            {
-                logging_log_message(ocl->platforms.info[i].name);
-            }
-
-            if (clGetPlatformInfo(ocl->platforms.ids[0], CL_PLATFORM_VENDOR, sizeof(ocl->platforms.info[i].vendor), ocl->platforms.info[i].vendor, NULL) == CL_SUCCESS)
-            {
-                logging_log_message(ocl->platforms.info[i].vendor);
-            }
-
-            if (clGetPlatformInfo(ocl->platforms.ids[0], CL_PLATFORM_VERSION, sizeof(ocl->platforms.info[i].version), ocl->platforms.info[i].version, NULL) == CL_SUCCESS)
-            {
-                logging_log_message(ocl->platforms.info[i].version);
-            }
+            logging_log_message(ocl->platforms.info[i].name);
         }
 
-        if (clGetDeviceIDs(ocl->platforms.ids[0], CL_DEVICE_TYPE_GPU, 1, ocl->devices.ids, &ocl->devices.count) == CL_SUCCESS)
+        if (clGetPlatformInfo(ocl->platforms.ids[0], CL_PLATFORM_VENDOR, sizeof(ocl->platforms.info[i].vendor), ocl->platforms.info[i].vendor, NULL) == CL_SUCCESS)
         {
-            cl_int error = CL_SUCCESS;
+            logging_log_message(ocl->platforms.info[i].vendor);
+        }
 
-            logging_log_message("OpenCL devices found:");
-
-            for (size_t i = 0; i < ocl->devices.count; ++i)
-            {
-                if (clGetDeviceInfo(ocl->devices.ids[i], CL_DEVICE_NAME, sizeof(ocl->devices.info[i].name), ocl->devices.info[i].name, NULL) == CL_SUCCESS)
-                {
-                    logging_log_message(ocl->devices.info[i].name);
-                }
-            }
-
-            ocl->context = clCreateContext(NULL, 1, ocl->devices.ids, NULL, NULL, &error);
-            if (error == CL_SUCCESS)
-            {
-                const cl_queue_properties properties[] = {0};
-                ocl->queue = clCreateCommandQueueWithProperties(ocl->context, ocl->devices.ids[0], properties, &error);
-                if (error == CL_SUCCESS)
-                {
-                    is_ok = true;
-                }
-            }
+        if (clGetPlatformInfo(ocl->platforms.ids[0], CL_PLATFORM_VERSION, sizeof(ocl->platforms.info[i].version), ocl->platforms.info[i].version, NULL) == CL_SUCCESS)
+        {
+            logging_log_message(ocl->platforms.info[i].version);
         }
     }
+
+    // Geräte suchen
+    if (clGetDeviceIDs(ocl->platforms.ids[0], CL_DEVICE_TYPE_GPU, 1, ocl->devices.ids, &ocl->devices.count) != CL_SUCCESS)
+    {
+        logging_log_message("Fehler: Keine OpenCL-Geräte gefunden");
+        return false;
+    }
+
+    logging_log_message("OpenCL devices found:");
+
+    for (size_t i = 0; i < ocl->devices.count; ++i)
+    {
+        if (clGetDeviceInfo(ocl->devices.ids[i], CL_DEVICE_NAME, sizeof(ocl->devices.info[i].name), ocl->devices.info[i].name, NULL) == CL_SUCCESS)
+        {
+            logging_log_message(ocl->devices.info[i].name);
+        }
+    }
+
+    // Kontext erstellen
+    error = CL_SUCCESS;
+    ocl->context = clCreateContext(NULL, 1, ocl->devices.ids, NULL, NULL, &error);
+    if (error != CL_SUCCESS)
+    {
+        logging_log_message("Fehler: Kontext-Erstellung fehlgeschlagen");
+        char error_msg[256];
+        snprintf(error_msg, sizeof(error_msg), "Fehler-Code: %d", error);
+        logging_log_message(error_msg);
+        logging_log_message("Device:");
+        logging_log_message(ocl->devices.info[0].name);
+        return false;
+    }
+
+    // Command Queue erstellen
+    const cl_queue_properties properties[] = {0};
+    error = CL_SUCCESS;
+    ocl->queue = clCreateCommandQueueWithProperties(ocl->context, ocl->devices.ids[0], properties, &error);
+    if (error != CL_SUCCESS)
+    {
+        logging_log_message("Fehler: Command Queue-Erstellung fehlgeschlagen");
+        return false;
+    }
+
+    is_ok = true;
+    logging_log_message("ocl_initialize erfolgreich");
     
     return is_ok;
 }
 
 void ocl_deinitialize(const ocl_core_t ocl)
 {
+    // Kernel-Arrays aufräumen
     for (size_t i = 0; i < OCL_MAX_KERNELS; ++i)
     {
         if (ocl->program.kernels[i] != NULL)
@@ -95,18 +120,21 @@ void ocl_deinitialize(const ocl_core_t ocl)
         }
     }
 
+    // Programm aufräumen
     if (ocl->program.binary != NULL)
     {
         clReleaseProgram(ocl->program.binary);
         ocl->program.binary = NULL;
     }
 
+    // Command Queue aufräumen
     if (ocl->queue != NULL)
     {
         clReleaseCommandQueue(ocl->queue);
         ocl->queue = NULL;
     }
 
+    // Kontext aufräumen
     if (ocl->context != NULL)
     {
         clReleaseContext(ocl->context);
@@ -122,7 +150,8 @@ cl_mem ocl_create_input_buffer_from_memory(const ocl_core_t ocl, uint8_t* data, 
     cl_mem buffer = clCreateBuffer(ocl->context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, size_bytes, data, &error);
     if (error != CL_SUCCESS)
     {
-        logging_log_message("Error: Buffer creation failed!");
+        logging_log_message("Fehler: Input-Buffer-Erstellung fehlgeschlagen");
+        return NULL;
     }
     return buffer;
 }
@@ -133,7 +162,8 @@ cl_mem ocl_create_output_buffer(const ocl_core_t ocl, size_t size_bytes)
     cl_mem buffer = clCreateBuffer(ocl->context, CL_MEM_WRITE_ONLY, size_bytes, NULL, &error);
     if (error != CL_SUCCESS)
     {
-        logging_log_message("Error: Buffer creation failed!");
+        logging_log_message("Fehler: Output-Buffer-Erstellung fehlgeschlagen");
+        return NULL;
     }
     return buffer;
 }
@@ -147,7 +177,11 @@ cl_mem ocl_create_buffer(const ocl_core_t ocl, ocl_buf_type_t type, size_t size_
 
     cl_int error = CL_SUCCESS;
     cl_mem buffer = clCreateBuffer(ocl->context, flags, size_bytes, host_ptr, &error);
-    if (error != CL_SUCCESS) logging_log_message("ocl_create_buffer failed");
+    if (error != CL_SUCCESS)
+    {
+        logging_log_message("Fehler: Buffer-Erstellung fehlgeschlagen");
+        return NULL;
+    }
     return buffer;
 }
 
@@ -174,25 +208,35 @@ bool ocl_enqueue_kernel(const ocl_core_t ocl, cl_kernel kernel, size_t global_wo
 
 cl_kernel ocl_get_kernel(const ocl_core_t ocl, ocl_kernel_t kernel)
 {
-    if (kernel < OCL_KERNEL_COUNT) return ocl->program.kernels[kernel];
+    if (kernel >= 0 && kernel < OCL_KERNEL_COUNT)
+        return ocl->program.kernels[kernel];
+    
+    char error_msg[256];
+    snprintf(error_msg, sizeof(error_msg), "Fehler: Ungültiger Kernel-Index %d", kernel);
+    logging_log_message(error_msg);
     return NULL;
 }
 
 bool ocl_load_kernels(const ocl_core_t ocl)
 {
     bool is_ok = true;
+    char kernel_name[256];
     for (int i = 0; i < OCL_KERNEL_COUNT; ++i)
     {
         cl_int error = CL_SUCCESS;
         ocl->program.kernels[i] = clCreateKernel(ocl->program.binary, _ocl_kernel_names[i], &error);
         if (error != CL_SUCCESS)
         {
-            fprintf(stderr, "Fehler: Kernel '%s' konnte nicht erstellt werden (Fehler %d)\n",
-                    _ocl_kernel_names[i], error);
+            snprintf(kernel_name, sizeof(kernel_name), "Fehler: Kernel %s konnte nicht erstellt werden", _ocl_kernel_names[i]);
+            logging_log_message(kernel_name);
             is_ok = false;
             break;
         }
     }
+    
+    if (is_ok)
+        logging_log_message("ocl_load_kernels erfolgreich");
+    
     return is_ok;
 }
 
@@ -244,27 +288,38 @@ bool ocl_compile(const ocl_core_t ocl)
     cl_int error = CL_SUCCESS;
 
     char *source = _ocl_build_source();
-    if (!source) return false;
+    if (!source)
+    {
+        logging_log_message("Fehler: OpenCL-Quellcode kann nicht aufgebaut werden");
+        return false;
+    }
 
     ocl->program.binary = clCreateProgramWithSource(ocl->context, 1, (const char **)&source, NULL, &error);
     free(source);
 
+    if (error != CL_SUCCESS)
+    {
+        logging_log_message("Fehler: Programm-Erstellung fehlgeschlagen");
+        return false;
+    }
+
+    error = clBuildProgram(ocl->program.binary, 1, ocl->devices.ids, NULL, NULL, NULL);
     if (error == CL_SUCCESS)
     {
-        error = clBuildProgram(ocl->program.binary, 1, ocl->devices.ids, NULL, NULL, NULL);
-        if (error == CL_SUCCESS)
+        is_ok = true;
+        logging_log_message("OpenCL-Kernel erfolgreich kompiliert");
+    }
+    else
+    {
+        logging_log_message("Fehler: Kernel-Compilation fehlgeschlagen");
+        size_t log_size;
+        clGetProgramBuildInfo(ocl->program.binary, ocl->devices.ids[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+        char* log = (char*)malloc(log_size);
+        if (log)
         {
-            is_ok = true;
-            logging_log_message("OpenCL is initialized.");
-        }
-        else
-        {
-            fprintf(stderr, "Fehler: Programm konnte nicht kompiliert werden (%d)\n", error);
-            size_t log_size;
-            clGetProgramBuildInfo(ocl->program.binary, ocl->devices.ids[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
-            char* log = malloc(log_size);
             clGetProgramBuildInfo(ocl->program.binary, ocl->devices.ids[0], CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
-            fprintf(stderr, "Build-Log:\n%s\n", log);
+            logging_log_message("Build-Log:");
+            logging_log_message(log);
             free(log);
         }
     }
@@ -274,7 +329,12 @@ bool ocl_compile(const ocl_core_t ocl)
 
 void ocl_finish_frame(const ocl_core_t ocl)
 {
-    clFinish(ocl->queue);
+    cl_int error = CL_SUCCESS;
+    error = clFinish(ocl->queue);
+    if (error != CL_SUCCESS)
+    {
+        logging_log_message("Fehler: clFinish fehlgeschlagen");
+    }
 }
 
 void ocl_set_parameter_subtract_images(const cl_kernel kernel, const ocl_image_operation_t parameter, cl_mem b, cl_mem result)
@@ -294,7 +354,7 @@ void ocl_set_parameter_subtract_images(const cl_kernel kernel, const ocl_image_o
 
 	if (error != CL_SUCCESS)
 	{
-		logging_log_message("Error: Setting Arguments failed!");
+		logging_log_message("Fehler: Kernel-Argumente nicht gesetzt");
 	}
 }
 
@@ -310,7 +370,7 @@ void ocl_set_parameter_histogram(const cl_kernel kernel, const ocl_image_operati
 
     if (error != CL_SUCCESS)
     {
-        logging_log_message("Error: Setting histogram arguments failed!");
+        logging_log_message("Fehler: Histogram-Kernel-Argumente nicht gesetzt");
     }
 }
 
@@ -331,7 +391,7 @@ void ocl_set_parameter_brightest_spot(const cl_kernel kernel, const ocl_image_op
 
     if (error != CL_SUCCESS)
     {
-        logging_log_message("Error: Setting brightest_spot arguments failed!");
+        logging_log_message("Fehler: brightest_spot-Kernel-Argumente nicht gesetzt");
     }
 }
 
@@ -343,5 +403,8 @@ void ocl_set_parameter_matvec_bf16(const cl_kernel kernel, cl_mem y, cl_mem x, c
 	error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &W);
 	error |= clSetKernelArg(kernel, 3, sizeof(int), &in_dim);
 	error |= clSetKernelArg(kernel, 4, sizeof(int), &out_dim);
-	if (error != CL_SUCCESS) logging_log_message("ocl_set_parameter_matvec_bf16 failed");
+	if (error != CL_SUCCESS)
+	{
+		logging_log_message("Fehler: matvec_bf16-Kernel-Argumente nicht gesetzt");
+	}
 }
