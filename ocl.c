@@ -264,3 +264,72 @@ void ocl_finish_frame(const ocl_core_t ocl)
 {
     clFinish(ocl->queue);
 }
+
+void ocl_set_parameter_subtract_images(const cl_kernel kernel, const ocl_image_operation_t parameter, cl_mem b, cl_mem result)
+{
+	cl_int error = CL_SUCCESS;
+	int min_val = 0;
+	int max_val = 255;
+
+	error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &parameter->image);
+	error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &b);
+	error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &result);
+	error |= clSetKernelArg(kernel, 3, sizeof(int), &parameter->width);
+	error |= clSetKernelArg(kernel, 4, sizeof(int), &parameter->height);
+	error |= clSetKernelArg(kernel, 5, sizeof(int), &parameter->pitch_bytes);
+	error |= clSetKernelArg(kernel, 6, sizeof(int), &min_val);
+	error |= clSetKernelArg(kernel, 7, sizeof(int), &max_val);
+
+	if (error != CL_SUCCESS)
+	{
+		logging_log_message("Error: Setting Arguments failed!");
+	}
+}
+
+void ocl_set_parameter_histogram(const cl_kernel kernel, const ocl_image_operation_t parameter, cl_mem result)
+{
+    cl_int error = CL_SUCCESS;
+
+    error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &parameter->image);
+    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &result);
+    error |= clSetKernelArg(kernel, 2, sizeof(int), &parameter->width);
+    error |= clSetKernelArg(kernel, 3, sizeof(int), &parameter->height);
+    error |= clSetKernelArg(kernel, 4, sizeof(int), &parameter->pitch_bytes);
+
+    if (error != CL_SUCCESS)
+    {
+        logging_log_message("Error: Setting histogram arguments failed!");
+    }
+}
+
+void ocl_set_parameter_brightest_spot(const cl_kernel kernel, const ocl_image_operation_t parameter, int cx, int cy, int rw, int rh, int sub_r, cl_mem result)
+{
+    cl_int error = CL_SUCCESS;
+
+    error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &parameter->image);
+    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &result);
+    error |= clSetKernelArg(kernel, 2, sizeof(int), &parameter->width);
+    error |= clSetKernelArg(kernel, 3, sizeof(int), &parameter->height);
+    error |= clSetKernelArg(kernel, 4, sizeof(int), &parameter->pitch_bytes);
+    error |= clSetKernelArg(kernel, 5, sizeof(int), &cx);
+    error |= clSetKernelArg(kernel, 6, sizeof(int), &cy);
+    error |= clSetKernelArg(kernel, 7, sizeof(int), &rw);
+    error |= clSetKernelArg(kernel, 8, sizeof(int), &rh);
+    error |= clSetKernelArg(kernel, 9, sizeof(int), &sub_r);
+
+    if (error != CL_SUCCESS)
+    {
+        logging_log_message("Error: Setting brightest_spot arguments failed!");
+    }
+}
+
+void ocl_set_parameter_matvec_bf16(const cl_kernel kernel, cl_mem y, cl_mem x, cl_mem W, int in_dim, int out_dim)
+{
+	cl_int error = CL_SUCCESS;
+	error |= clSetKernelArg(kernel, 0, sizeof(cl_mem), &y);
+	error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &x);
+	error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &W);
+	error |= clSetKernelArg(kernel, 3, sizeof(int), &in_dim);
+	error |= clSetKernelArg(kernel, 4, sizeof(int), &out_dim);
+	if (error != CL_SUCCESS) logging_log_message("ocl_set_parameter_matvec_bf16 failed");
+}
