@@ -113,6 +113,7 @@ protected const char* ocl_get_source_iwt_q(void)
     "__kernel void iwt_q(\n"
     "    __global const double* I_real,\n"
     "    __global const double* I_imag,\n"
+    "    __global const double* K,\n"
     "    __global double* Q,\n"
     "    int N,\n"
     "    double sum_abs_sq,\n"
@@ -120,7 +121,8 @@ protected const char* ocl_get_source_iwt_q(void)
     "    double m,\n"
     "    double beta,\n"
     "    double epsilon,\n"
-    "    double Q_min)\n"
+    "    double Q_min,\n"
+    "    double thresh)\n"
     "{\n"
     "    int i = get_global_id(0);\n"
     "    if (i >= N) return;\n"
@@ -134,18 +136,29 @@ protected const char* ocl_get_source_iwt_q(void)
     "\n"
     "    double sqrt_rho_i = sqrt(rho_i);\n"
     "\n"
-    "    // Diskretes Laplace Δ_d² (Kap. 3.3)\n"
+    "    // ========================================================\n"
+    "    // Diskreter Laplace Δ_d² als LOKALER Graph-Laplace.\n"
+    "    // IWT_NORM_FIX: Vorher Summe ueber ALLE N Knoten (= globale\n"
+    "    // Mittelwert-Abweichung, kein Laplace); jetzt K-gewichtete\n    "
+    " // Summe nur ueber stark gekoppelte Nachbarn (K > thresh),\n"
+    "    // normiert auf die Gewichtssumme.\n"
+    "    // Theorie: Kap. 3.3, Δ_d² wirkt auf der Nachbarschaft von k.\n"
+    "    // ========================================================\n"
     "    double laplace = 0.0;\n"
+    "    double wsum = 0.0;\n"
     "    for (int j = 0; j < N; j++) {\n"
     "        if (j == i) continue;\n"
+    "        double Kij = K[i*N + j];\n"
+    "        if (Kij <= thresh) continue;\n"
     "        double Re_j = I_real[j];\n"
     "        double Im_j = I_imag[j];\n"
     "        double abs_j = sqrt(Re_j*Re_j + Im_j*Im_j + 1e-30);\n"
     "        double rho_j = abs_j*abs_j / (sum_abs_sq + 1e-30);\n"
     "        if (rho_j < 1e-30) continue;\n"
-    "        double sqrt_rho_j = sqrt(rho_j);\n"
-    "        laplace += (sqrt_rho_j - sqrt_rho_i);\n"
+    "        laplace += Kij * (sqrt(rho_j) - sqrt_rho_i);\n"
+    "        wsum += Kij;\n"
     "    }\n"
+    "    laplace /= (wsum + 1e-30);\n"
     "\n"
     "    // Bohm-Potential (Kap. 12, Gleichung 12.1)\n"
     "    double prefactor = -beta * (hbar*hbar) / (2.0 * m);\n"
@@ -158,11 +171,18 @@ protected const char* ocl_get_source_iwt_q(void)
  * THEORIE: Gleichung (P.3): I_k^(n+1) = I_k^(n) + T * Φ_k
  *
  * Verwendet einen symplektischen Leapfrog-Integrator:
- *   1. phase_half = phase_old + 0.5*DT*Q_i
+ *   1. phase_half = phase_old + 0.5*DT_Q*Q_i
  *   2. rho_new = rho_old - DT*flow
- *   3. phase_new = phase_half + 0.5*DT*Q_i
+ *   3. phase_new = phase_half + 0.5*DT_Q*Q_i
  *
  * Die Phase wird auf [-π, π] gefaltet (Anhang R).
+ *
+ * IWT_NORM: Getrennte Zeitschritte für Dichte (DT) und Phase (DT_Q).
+ * Theorie: P.3 verwendet einen einzigen Zeitschritt T.
+ * Implementierung: DT_Q ist die effektive Quantenrate (phase_dt),
+ * da das rohe DT=1e-12 den Bohm-Kick numerisch einfrieren würde.
+ * Grund: Konsistent mit README "Numerische Skalierung" – gamma_eff
+ * wird in DT absorbiert; hier zusätzlich der Phasenanteil separat.
  */
 protected const char* ocl_get_source_iwt_update_info(void)
 {
@@ -173,8 +193,11 @@ protected const char* ocl_get_source_iwt_update_info(void)
     "    __global double* I_phase,\n"
     "    __global const double* sumJ,\n"
     "    __global const double* Q,\n"
+    "    __global const double* K,\n"
     "    int N,\n"
-    "    double DT)\n"
+    "    double DT,\n"
+    "    double DT_Q,\n"
+    "    double thresh)\n"
     "{\n"
     "    int i = get_global_id(0);\n"
     "    if (i >= N) return;\n"
@@ -185,15 +208,37 @@ protected const char* ocl_get_source_iwt_update_info(void)
     "    double rho_old = abs_old*abs_old;\n"
     "    double phase_old = I_phase[i];\n"
     "\n"
+    "    // ========================================================\n"
+    "    // Phasen-Fluss: K-gewichtete Nachbardifferenzen (Graph-Kopplung).\n"
+    "    // IWT_NORM: Lokale Ausbreitung der Phase entlang der Kopplungen.\n"
+    "    // Theorie: P.3 Term 1 wirkt auf dem komplexen Feld; hier der\n"
+    "    // Phasenanteil als Kuramoto-artige Diffusion der Differenzen.\n"
+    "    // Grund: Ohne raeumlichen Kopplungsterm wandern Wellenfronten\n"
+    "    // nicht (lokale Reaktion allein erzeugt keine Propagation).\n"
+    "    // ========================================================\n"
+    "    double sflow = 0.0;\n"
+    "    double wsum = 0.0;\n"
+    "    double PI2 = 2.0 * 4.0 * atan(1.0);\n"
+    "    for (int j = 0; j < N; j++) {\n"
+    "        if (j == i) continue;\n"
+    "        double Kij = K[i*N + j];\n"
+    "        if (Kij <= thresh) continue;\n"
+    "        double dS = I_phase[j] - phase_old;\n"
+    "        dS -= PI2 * rint(dS / PI2);\n"
+    "        sflow += Kij * dS;\n"
+    "        wsum += Kij;\n"
+    "    }\n"
+    "    sflow /= (wsum + 1e-30);\n"
+    "\n"
     "    // 1. Halber Schritt für die Phase (mit altem rho)\n"
-    "    double phase_half = phase_old + 0.5 * DT * Q[i];\n"
+    "    double phase_half = phase_old + 0.5 * DT_Q * (Q[i] + sflow);\n"
     "\n"
     "    // 2. Vollständiger Schritt für rho (mit phase_half)\n"
     "    double flow = sumJ[i];\n"
     "    double rho_new = rho_old - DT * flow;\n"
     "\n"
     "    // 3. Halber Schritt für die Phase (mit rho_new)\n"
-    "    double phase_new = phase_half + 0.5 * DT * Q[i];\n"
+    "    double phase_new = phase_half + 0.5 * DT_Q * (Q[i] + sflow);\n"
     "\n"
     "    // Phasen-Faltung (Anhang R)\n"
     "    double PI = 4.0 * atan(1.0);\n"
@@ -224,6 +269,7 @@ protected const char* ocl_get_source_iwt_apply_fluctuations(void)
     "__kernel void iwt_apply_fluctuations(\n"
     "    __global double* I_real,\n"
     "    __global double* I_imag,\n"
+    "    __global double* I_phase,\n"
     "    __global const double* xi_real,\n"
     "    __global const double* xi_imag,\n"
     "    int N)\n"
@@ -232,6 +278,17 @@ protected const char* ocl_get_source_iwt_apply_fluctuations(void)
     "    if (i >= N) return;\n"
     "    I_real[i] += xi_real[i];\n"
     "    I_imag[i] += xi_imag[i];\n"
+    "\n"
+    "    // ========================================================\n"
+    "    // IWT_NORM: Vakuumfluktuationen regen auch die Phase an.\n"
+    "    // Theorie: P.3 Term 4 wirkt auf dem komplexen Feld I; die\n"
+    "    // Streuung des Imaginaerteils entspricht einem Phasen-Kick.\n"
+    "    // Implementierung: phi += 0.15 * xi_imag (xi ist bereits\n"
+    "    // vakuum-gewichtet aus frozen_generate_uncertainty_cpu).\n"
+    "    // Grund: Ohne Phasenquelle bleibt das Vakuum statisch und\n"
+    "    // es emergieren keine freien Strahlungsanregungen.\n"
+    "    // ========================================================\n"
+    "    I_phase[i] += 0.15 * xi_imag[i];\n"
     "}\n";
 }
 
