@@ -256,6 +256,67 @@ protected const char* ocl_get_source_iwt_update_info(void)
 }
 
 /**
+ * FLUKTUATIONEN ERZEUGEN: Intrinsische Unschärfe auf der GPU.
+ * THEORIE: Gleichung (P.3), Term 4: sqrt(ℏ/(2T)) * ξ_k^(n)
+ *
+ * Ersetzt die eingefrorene CPU-Funktion frozen_generate_uncertainty_cpu
+ * durch einen parallelen GPU-Kernel. Die statistischen Eigenschaften sind
+ * identisch (Standard-Normalverteilung, unkorrelierte Fluktuationen), die
+ * Stärke skaliert mit der Vakuumdichte wie auf der CPU:
+ *   fluct_strength = SCALE * (1 - rho_i/(RHO_0 + rho_i))
+ *
+ * Deterministischer SplitMix64-PRNG mit pro Slot variiertem Seed (Slot-Index
+ * und Zeitschritt gemischt) garantiert die Unkorrelation über das Netzwerk,
+ * ohne den sequenziellen Fisher-Yates-Shuffle der CPU-Version.
+ */
+protected const char* ocl_get_source_iwt_fluctuations(void)
+{
+    return
+    "__kernel void iwt_fluctuations(\n"
+    "    __global const double* I_real,\n"
+    "    __global const double* I_imag,\n"
+    "    __global double* xi_real,\n"
+    "    __global double* xi_imag,\n"
+    "    int N,\n"
+    "    unsigned int base_seed,\n"
+    "    double scale,\n"
+    "    double rho_0)\n"
+    "{\n"
+    "    int i = get_global_id(0);\n"
+    "    if (i >= N) return;\n"
+    "\n"
+    "    // Deterministischer PRNG pro Slot (Xorshift64 mit gemischtem Seed)\n"
+    "    ulong s = ((ulong) base_seed) ^ (((ulong) i) * 0x9E3779B97F4A7C15UL);\n"
+    "    if (s == 0) s = 0x9E3779B97F4A7C15UL;\n"
+    "\n"
+    "    ulong x = s;\n"
+    "    x ^= x >> 12;\n"
+    "    x ^= x << 25;\n"
+    "    x ^= x >> 27;\n"
+    "    ulong h = x * 0x2545F4914F6CDD1DUL;\n"
+    "    double u1 = (double) (h >> 11) * (1.0 / 9007199254740992.0);\n"
+    "\n"
+    "    x = s * 0x2545F4914F6CDD1DUL;\n"
+    "    x ^= x >> 12;\n"
+    "    x ^= x << 25;\n"
+    "    x ^= x >> 27;\n"
+    "    ulong h2 = x * 0x2545F4914F6CDD1DUL;\n"
+    "    double u2 = (double) (h2 >> 11) * (1.0 / 9007199254740992.0);\n"
+    "\n"
+    "    // Vakuumfluktuation nur im Vakuum (rho_i klein); wie CPU-Version\n"
+    "    double rho_i = I_real[i] * I_real[i] + I_imag[i] * I_imag[i] + 1e-30;\n"
+    "    double fluct = scale * (1.0 - rho_i / (rho_0 + rho_i));\n"
+    "\n"
+    "    // Box-Muller: zwei unabhaengige normalverteilte Komponenten\n"
+    "    double u1c = fmax(u1, 1e-30);\n"
+    "    double r = sqrt(-2.0 * log(u1c));\n"
+    "    double ang = 6.283185307179586 * u2;\n"
+    "    xi_real[i] = r * cos(ang) * fluct;\n"
+    "    xi_imag[i] = r * sin(ang) * fluct;\n"
+    "}\n";
+}
+
+/**
  * FLUKTUATIONEN ANWENDEN: Intrinsische Unschärfe.
  * THEORIE: Gleichung (P.3), Term 4: sqrt(ℏ/(2T)) * ξ_k^(n)
  *
