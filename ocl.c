@@ -26,7 +26,8 @@ const char *_ocl_kernel_names[OCL_KERNEL_COUNT] =
 	"iwt_apply_fluctuations",
 	"iwt_mass_charge",
 	"iwt_redshift_damping",
-	"iwt_wave_segments"
+	"iwt_wave_count_points",
+	"iwt_wave_emit"
 };
 
 bool ocl_initialize(const ocl_core_t ocl)
@@ -253,7 +254,8 @@ static char *_ocl_build_source(void)
 		ocl_get_source_iwt_apply_fluctuations(),
 		ocl_get_source_iwt_mass_charge(),
 		ocl_get_source_iwt_redshift_damping(),
-		ocl_get_source_iwt_wave_segments(),
+		ocl_get_source_iwt_wave_count_points(),
+		ocl_get_source_iwt_wave_emit(),
         NULL
     };
 

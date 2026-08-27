@@ -404,32 +404,30 @@ protected const char* ocl_get_source_iwt_redshift_damping(void)
 }
 
 /**
- * iwt_wave_segments - EM-Wellenfront-Visualisierung auf der GPU.
+ * iwt_wave_count_points - EM-Wellenfront-Visualisierung, Pass 1 (GPU).
  *
- * Berechnet für jeden (Knoten, Level) die Phasen-Schnittpunkte mit den
- * Nachbarn und emittiert die resultierenden Polylinien-Segmente direkt in
- * einen Segment-Buffer (x,y,z,r,g,b je Vertex, 2 Vertices je Segment).
- * Ein atomarer Zähler vergibt die Segment-Indizes.
- *
- * Dies entspricht exakt der CPU-Implementierung in gui.c
- * (wave_compute_crossings + wave_emit_node_segments).
+ * 2D-Range (N x LEVELS). Berechnet fuer jeden (Knoten, Niveau) die
+ * Phasen-Schnittpunkte mit den Nachbarn und schreibt:
+ *   - die Schnittpunkt-Koordinaten nach points_gpu
+ *   - die Anzahl nach counts_gpu
+ * Ohne atomare Operationen, ohne skalare Division/Modulo (2D-Global-ID).
  */
-protected const char* ocl_get_source_iwt_wave_segments(void)
+protected const char* ocl_get_source_iwt_wave_count_points(void)
 {
     return
-    "__kernel void iwt_wave_segments(\n"
+    "__kernel void iwt_wave_count_points(\n"
     "    __global const double* I_phase,\n"
     "    __global const double* pos_x,\n"
     "    __global const double* pos_y,\n"
     "    __global const double* pos_z,\n"
     "    __global const int* wave_flat,\n"
     "    __global const int* wave_count,\n"
-    "    __global unsigned int* seg_counter,\n"
-    "    __global float* segments,\n"
+    "    __global int* counts,\n"
+    "    __global double* points,\n"
     "    int N,\n"
-    "    unsigned int wave_stride,\n"
     "    int levels,\n"
     "    int max_crossings,\n"
+    "    unsigned int wave_stride,\n"
     "    double base_level,\n"
     "    double level_step,\n"
     "    double two_pi,\n"
@@ -437,9 +435,8 @@ protected const char* ocl_get_source_iwt_wave_segments(void)
     "    double slice_pos,\n"
     "    double slice_delta)\n"
     "{\n"
-    "    int idx = get_global_id(0);\n"
-    "    int node = idx / levels;\n"
-    "    int l = idx % levels;\n"
+    "    int node = get_global_id(0);\n"
+    "    int l = get_global_id(1);\n"
     "    if (node >= N) return;\n"
     "\n"
     "    double phase_i = I_phase[node];\n"
@@ -448,11 +445,14 @@ protected const char* ocl_get_source_iwt_wave_segments(void)
     "    di -= two_pi * rint(di / two_pi);\n"
     "\n"
     "    // Early-Exit: Knoten ausserhalb der Sichtebene ueberspringen\n"
-    "    // (exakt wie die CPU-Implementierung wave_compute_crossings)\n"
     "    if (slice_mode)\n"
     "    {\n"
     "        double nz = fabs(pos_z[node] - slice_pos);\n"
-    "        if (nz > slice_delta) return;\n"
+    "        if (nz > slice_delta)\n"
+    "        {\n"
+    "            counts[node * levels + l] = 0;\n"
+    "            return;\n"
+    "        }\n"
     "    }\n"
     "\n"
     "    double px[4];\n"
@@ -490,13 +490,51 @@ protected const char* ocl_get_source_iwt_wave_segments(void)
     "        ncross++;\n"
     "    }\n"
     "\n"
+    "    counts[node * levels + l] = ncross;\n"
+    "\n"
+    "    int pbase = (node * levels + l) * max_crossings * 3;\n"
+    "    for (int k = 0; k < ncross; k++)\n"
+    "    {\n"
+    "        points[pbase + k * 3 + 0] = px[k];\n"
+    "        points[pbase + k * 3 + 1] = py[k];\n"
+    "        points[pbase + k * 3 + 2] = pz[k];\n"
+    "    }\n"
+    "}\n"
+    ;
+}
+
+/**
+ * iwt_wave_emit - EM-Wellenfront-Visualisierung, Pass 2 (GPU).
+ *
+ * 2D-Range (N x LEVELS). Liest die im Pass 1 berechneten Schnittpunkte und
+ * schreibt die Polylinien-Segmente an die vorberechnete Basis-Offset-Position.
+ * Ohne atomare Operationen.
+ */
+protected const char* ocl_get_source_iwt_wave_emit(void)
+{
+    return
+    "__kernel void iwt_wave_emit(\n"
+    "    __global const int* counts,\n"
+    "    __global const double* points,\n"
+    "    __global const int* offsets,\n"
+    "    __global float* segments,\n"
+    "    int levels,\n"
+    "    int max_crossings,\n"
+    "    double base_level,\n"
+    "    double level_step,\n"
+    "    double two_pi)\n"
+    "{\n"
+    "    int node = get_global_id(0);\n"
+    "    int l = get_global_id(1);\n"
+    "    int slot = node * levels + l;\n"
+    "    int ncross = counts[slot];\n"
     "    if (ncross < 2) return;\n"
     "\n"
     "    // Farbe: Hue aus dem Phasen-Niveau (wie CPU wave_hsv_to_rgb, s=0.85, v=0.95)\n"
+    "    double level_l = base_level + (double) l * level_step;\n"
     "    float hue = (float) ((level_l + 3.141592653589793) / two_pi);\n"
     "    float h6 = hue * 6.0f;\n"
     "    float h6f = floor(h6);\n"
-    "    float i6 = h6f;\n"
     "    float f6 = h6 - h6f;\n"
     "    float v = 0.95f;\n"
     "    float s = 0.85f;\n"
@@ -504,7 +542,7 @@ protected const char* ocl_get_source_iwt_wave_segments(void)
     "    float q = v * (1.0f - f6 * s);\n"
     "    float tt = v * (1.0f - (1.0f - f6) * s);\n"
     "    float rgb[3];\n"
-    "    int sect = ((int) i6) % 6;\n"
+    "    int sect = ((int) h6f) % 6;\n"
     "    if (sect == 0) { rgb[0]=v; rgb[1]=tt; rgb[2]=p; }\n"
     "    else if (sect == 1) { rgb[0]=q; rgb[1]=v; rgb[2]=p; }\n"
     "    else if (sect == 2) { rgb[0]=p; rgb[1]=v; rgb[2]=tt; }\n"
@@ -512,16 +550,23 @@ protected const char* ocl_get_source_iwt_wave_segments(void)
     "    else if (sect == 4) { rgb[0]=tt; rgb[1]=p; rgb[2]=v; }\n"
     "    else { rgb[0]=v; rgb[1]=p; rgb[2]=q; }\n"
     "\n"
-    "    // Segmente paarweise bilden (k, k+1)\n"
+    "    int seg_off = offsets[slot];\n"
+    "    int pbase = slot * max_crossings * 3;\n"
+    "\n"
     "    for (int k = 0; k + 1 < ncross; k += 2)\n"
     "    {\n"
-    "        unsigned int s = atomic_inc(seg_counter);\n"
-    "        float* v0 = &segments[s * 12];\n"
+    "        float* v0 = &segments[(seg_off) * 12];\n"
     "        float* v1 = v0 + 6;\n"
-    "        v0[0] = (float) px[k];   v0[1] = (float) py[k];   v0[2] = (float) pz[k];\n"
-    "        v1[0] = (float) px[k+1]; v1[1] = (float) py[k+1]; v1[2] = (float) pz[k+1];\n"
+    "        v0[0] = (float) points[pbase + k*3 + 0];\n"
+    "        v0[1] = (float) points[pbase + k*3 + 1];\n"
+    "        v0[2] = (float) points[pbase + k*3 + 2];\n"
+    "        v1[0] = (float) points[pbase + (k+1)*3 + 0];\n"
+    "        v1[1] = (float) points[pbase + (k+1)*3 + 1];\n"
+    "        v1[2] = (float) points[pbase + (k+1)*3 + 2];\n"
     "        v0[3] = rgb[0]; v0[4] = rgb[1]; v0[5] = rgb[2];\n"
     "        v1[3] = rgb[0]; v1[4] = rgb[1]; v1[5] = rgb[2];\n"
+    "        seg_off++;\n"
     "    }\n"
-    "}\n";
+    "}\n"
+    ;
 }
