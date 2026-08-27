@@ -195,14 +195,6 @@ bool ocl_enqueue_kernel(const ocl_core_t ocl, cl_kernel kernel, size_t global_wo
         logging_log_message(msg);
         return false;
     }
-    error = clFinish(ocl->queue);
-    if (error != CL_SUCCESS)
-    {
-        char msg[64];
-        snprintf(msg, sizeof(msg), "clFinish failed (Fehler %d)", error);
-        logging_log_message(msg);
-        return false;
-    }
     return true;
 }
 
