@@ -3,6 +3,7 @@
 #include <api/api.h>
 
 protected_import(const char*, ocl_get_source_iwt_flux(void));
+protected_import(const char*, ocl_get_source_iwt_precompute(void));
 protected_import(const char*, ocl_get_source_iwt_q(void));
 protected_import(const char*, ocl_get_source_iwt_update_info(void));
 protected_import(const char*, ocl_get_source_iwt_fluctuations(void));

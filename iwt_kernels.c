@@ -27,15 +27,23 @@
  *
  * Die Kopplungsgewichte w_kl sind aus K_kl normiert (Kap. 2, Axiom 4).
  * Der nichtlineare Term realisiert die fraktale Verstärkung (Kap. 4.6).
+ *
+ * IWT_NORM: Dichte rho wird NICHT mehr in der O(N²)-Schleife berechnet,
+ * sondern einmalig pro Knoten aus iwt_precompute übernommen (rho_vec).
+ * Theorie: rho_k = |I_k|² (Kap. 3.3).
+ * Implementierung: rho_vec[i] = |I_i|², identische Rundung wie zuvor
+ * (iwt_precompute bildet exakt abs²). Vermeidet ~N² FP64-sqrt in der
+ * Schleife (Consumer-GPU-FP64 ist eng begrenzt).
+ * Grund: Die innere Schleife ist FP64-rechenbegrenzt, nicht bandbreiten-
+ * begrenzt (siehe README.md, Abschnitt "Numerische Skalierung").
  */
 protected const char *ocl_get_source_iwt_flux(void)
 {
     return
     "__kernel void iwt_flux(\n"
-    "    __global const double* I_real,\n"
-    "    __global const double* I_imag,\n"
     "    __global const double* I_phase,\n"
     "    __global const double* Q,\n"
+    "    __global const double* rho_vec,\n"
     "    __global const double* K,\n"
     "    __global double* sumJ,\n"
     "    int N,\n"
@@ -46,10 +54,7 @@ protected const char *ocl_get_source_iwt_flux(void)
     "    int i = get_global_id(0);\n"
     "    if (i >= N) return;\n"
     "\n"
-    "    double Re_i = I_real[i];\n"
-    "    double Im_i = I_imag[i];\n"
-    "    double abs_i = sqrt(Re_i*Re_i + Im_i*Im_i + 1e-30);\n"
-    "    double rho_i = abs_i*abs_i;\n"
+    "    double rho_i = rho_vec[i];\n"
     "    double Q_i = Q[i];\n"
     "    double S_i = I_phase[i];\n"
     "\n"
@@ -61,10 +66,7 @@ protected const char *ocl_get_source_iwt_flux(void)
     "    for (int j = 0; j < N; j++) {\n"
     "        if (j == i) continue;\n"
     "\n"
-    "        double Re_j = I_real[j];\n"
-    "        double Im_j = I_imag[j];\n"
-    "        double abs_j = sqrt(Re_j*Re_j + Im_j*Im_j + 1e-30);\n"
-    "        double rho_j = abs_j*abs_j;\n"
+    "        double rho_j = rho_vec[j];\n"
     "        double Q_j = Q[j];\n"
     "\n"
     "        double Kij = K[i*N + j];\n"
@@ -99,6 +101,47 @@ protected const char *ocl_get_source_iwt_flux(void)
 }
 
 /**
+ * DICHTE-PRECOMPUTE: O(N)-Kernel, der die normierte Dichte pro Knoten
+ * einmal berechnet, statt sie in jeder der ~N² Paar-Operationen von
+ * iwt_flux und iwt_q erneut zu bilden.
+ *
+ * IWT_NORM: Identische Rundung wie die alten O(N²)-Kernels:
+ *   abs_i = sqrt(Re² + Im² + 1e-30), rho_vec = abs_i²,
+ *   rho_norm = rho_vec / (sum_abs_sq + 1e-30), sqrt_rho = sqrt(rho_norm).
+ * sum_abs_sq stammt wie bisher aus dem Host (rt->I_* nach update_info);
+ * dadurch bleibt die Simulation bitidentisch zur vorherigen Version.
+ *
+ * Grund: Die O(N²)-Schleifen sind FP64-rechenbegrenzt, nicht bandbreiten-
+ * begrenzt (siehe README.md, Abschnitt "Numerische Skalierung").
+ */
+protected const char* ocl_get_source_iwt_precompute(void)
+{
+    return
+    "__kernel void iwt_precompute(\n"
+    "    __global const double* I_real,\n"
+    "    __global const double* I_imag,\n"
+    "    __global double* rho_vec,\n"
+    "    __global double* rho_norm,\n"
+    "    __global double* sqrt_rho,\n"
+    "    int N,\n"
+    "    double sum_abs_sq)\n"
+    "{\n"
+    "    int i = get_global_id(0);\n"
+    "    if (i >= N) return;\n"
+    "\n"
+    "    double Re = I_real[i];\n"
+    "    double Im = I_imag[i];\n"
+    "    double abs_i = sqrt(Re*Re + Im*Im + 1e-30);\n"
+    "    double rho_i = abs_i*abs_i;\n"
+    "    rho_vec[i] = rho_i;\n"
+    "\n"
+    "    double rn = rho_i / (sum_abs_sq + 1e-30);\n"
+    "    rho_norm[i] = rn;\n"
+    "    sqrt_rho[i] = sqrt(rn);\n"
+    "}\n";
+}
+
+/**
  * BOHM-POTENTIAL-KERNEL: Berechnet Q_k.
  * THEORIE: Gleichung (P.3), Term 2: T * lambda * Δ²I_k / I_k
  *
@@ -106,17 +149,24 @@ protected const char *ocl_get_source_iwt_flux(void)
  *
  * Das Bohm-Potential ist der globale, nicht-lokale Anteil der IWT-Dynamik.
  * Es ist die Quelle der Nichtlokalität der Quantenmechanik (Kap. 12).
+ *
+ * IWT_NORM: rho_norm und sqrt_rho werden NICHT mehr in der O(N²)-Schleife
+ * berechnet, sondern einmalig pro Knoten aus iwt_precompute übernommen.
+ * Theorie: rho_k = |I_k|²/S (Kap. 3.3); Implementierung: identische
+ * Rundung wie zuvor (iwt_precompute bildet exakt abs², dann /sum_abs_sq).
+ * Vermeidet ~N² FP64-sqrt/div in der Schleife (Consumer-GPU-FP64 eng).
+ * Grund: Die innere Schleife ist FP64-rechenbegrenzt, nicht bandbreiten-
+ * begrenzt (siehe README.md, Abschnitt "Numerische Skalierung").
  */
 protected const char* ocl_get_source_iwt_q(void)
 {
     return
     "__kernel void iwt_q(\n"
-    "    __global const double* I_real,\n"
-    "    __global const double* I_imag,\n"
+    "    __global const double* rho_norm,\n"
+    "    __global const double* sqrt_rho,\n"
     "    __global const double* K,\n"
     "    __global double* Q,\n"
     "    int N,\n"
-    "    double sum_abs_sq,\n"
     "    double hbar,\n"
     "    double m,\n"
     "    double beta,\n"
@@ -127,14 +177,11 @@ protected const char* ocl_get_source_iwt_q(void)
     "    int i = get_global_id(0);\n"
     "    if (i >= N) return;\n"
     "\n"
-    "    double Re_i = I_real[i];\n"
-    "    double Im_i = I_imag[i];\n"
-    "    double abs_i = sqrt(Re_i*Re_i + Im_i*Im_i + 1e-30);\n"
-    "    double rho_i = abs_i*abs_i / (sum_abs_sq + 1e-30);\n"
+    "    double rho_i = rho_norm[i];\n"
     "\n"
     "    if (rho_i < 1e-30) { Q[i] = Q_min; return; }\n"
     "\n"
-    "    double sqrt_rho_i = sqrt(rho_i);\n"
+    "    double sqrt_rho_i = sqrt_rho[i];\n"
     "\n"
     "    // ========================================================\n"
     "    // Diskreter Laplace Δ_d² als LOKALER Graph-Laplace.\n"
@@ -150,12 +197,9 @@ protected const char* ocl_get_source_iwt_q(void)
     "        if (j == i) continue;\n"
     "        double Kij = K[i*N + j];\n"
     "        if (Kij <= thresh) continue;\n"
-    "        double Re_j = I_real[j];\n"
-    "        double Im_j = I_imag[j];\n"
-    "        double abs_j = sqrt(Re_j*Re_j + Im_j*Im_j + 1e-30);\n"
-    "        double rho_j = abs_j*abs_j / (sum_abs_sq + 1e-30);\n"
+    "        double rho_j = rho_norm[j];\n"
     "        if (rho_j < 1e-30) continue;\n"
-    "        laplace += Kij * (sqrt(rho_j) - sqrt_rho_i);\n"
+    "        laplace += Kij * (sqrt_rho[j] - sqrt_rho_i);\n"
     "        wsum += Kij;\n"
     "    }\n"
     "    laplace /= (wsum + 1e-30);\n"
