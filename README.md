@@ -34,6 +34,10 @@ ocl_deinitialize(&core);
 - `api`, `logging`, `threading`
 - System: OpenCL-Header/Library (`CL_TARGET_OPENCL_VERSION` = 300)
 
+## Wiki
+
+Dokumentation: [ocl – OpenCL-Wrapper](https://czybor.i234.me/wiki/sw-module/ocl/) (Quartz-Wiki)
+
 ## Build
 
 ```bash
