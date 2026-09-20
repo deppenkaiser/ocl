@@ -1,6 +1,6 @@
 #include <api/api.h>
 
-protected const char* ocl_get_source_subtract_images(void)
+const char* ocl_get_source_subtract_images(void)
 {
 	return
 	"__kernel void subtract_images(__global unsigned char* img_a, __global unsigned char* img_b,\n"
@@ -19,7 +19,7 @@ protected const char* ocl_get_source_subtract_images(void)
 	"}\n";
 }
 
-protected const char* ocl_get_source_histogram(void)
+const char* ocl_get_source_histogram(void)
 {
 	return
 	"__kernel void histogram(__global unsigned char* image, __global unsigned int* hist,\n"
@@ -36,7 +36,7 @@ protected const char* ocl_get_source_histogram(void)
 	"}\n";
 }
 
-protected const char* ocl_get_source_brightest_spot(void)
+const char* ocl_get_source_brightest_spot(void)
 {
 	return
 	"float2 subpixel_refine(__global const unsigned char* img, int w, int h, int stride,\n"
@@ -72,7 +72,7 @@ protected const char* ocl_get_source_brightest_spot(void)
 	"}\n";
 }
 
-protected const char* ocl_get_source_matvec_bf16(void)
+const char* ocl_get_source_matvec_bf16(void)
 {
 	return
 	"__kernel void matvec_bf16(__global float *y,\n"
@@ -93,7 +93,7 @@ protected const char* ocl_get_source_matvec_bf16(void)
 	"}\n";
 }
 
-protected const char* ocl_get_source_matvec_bf16_fused(void)
+const char* ocl_get_source_matvec_bf16_fused(void)
 {
 	return
 	"__kernel void matvec_bf16_fused(__global float *y0, __global float *y1,\n"
@@ -119,7 +119,7 @@ protected const char* ocl_get_source_matvec_bf16_fused(void)
 	"}\n";
 }
 
-protected const char* ocl_get_source_matvec_f32(void)
+const char* ocl_get_source_matvec_f32(void)
 {
 	return
 	"__kernel void matvec_f32(__global float *y,\n"
@@ -137,7 +137,7 @@ protected const char* ocl_get_source_matvec_f32(void)
 	"}\n";
 }
 
-protected const char* ocl_get_source_sd_attention_f32(void)
+const char* ocl_get_source_sd_attention_f32(void)
 {
 	return
 	"__kernel void sd_attention_f32(\n"
@@ -215,7 +215,7 @@ protected const char* ocl_get_source_sd_attention_f32(void)
 	"}\n";
 }
 
-protected const char* ocl_get_source_sd_qkv_proj_f32(void)
+const char* ocl_get_source_sd_qkv_proj_f32(void)
 {
 	return
 	"__kernel void sd_qkv_proj_f32(\n"
@@ -257,7 +257,7 @@ protected const char* ocl_get_source_sd_qkv_proj_f32(void)
 	"}\n";
 }
 
-protected const char* ocl_get_source_sd_output_proj_f32(void)
+const char* ocl_get_source_sd_output_proj_f32(void)
 {
 	return
 	"__kernel void sd_output_proj_f32(\n"
@@ -289,7 +289,7 @@ protected const char* ocl_get_source_sd_output_proj_f32(void)
 	"}\n";
 }
 
-protected const char* ocl_get_source_sd_attention_out_f32(void)
+const char* ocl_get_source_sd_attention_out_f32(void)
 {
 	return
 	"__kernel void sd_attention_out_f32(\n"
@@ -382,7 +382,7 @@ protected const char* ocl_get_source_sd_attention_out_f32(void)
 	"}\n";
 }
 
-protected const char* ocl_get_source_sd_norm_qkv_f32(void)
+const char* ocl_get_source_sd_norm_qkv_f32(void)
 {
 	return
 	"__kernel void sd_norm_qkv_f32(\n"

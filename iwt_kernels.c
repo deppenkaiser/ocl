@@ -37,7 +37,7 @@
  * Grund: Die innere Schleife ist FP64-rechenbegrenzt, nicht bandbreiten-
  * begrenzt (siehe README.md, Abschnitt "Numerische Skalierung").
  */
-protected const char *ocl_get_source_iwt_flux(void)
+const char *ocl_get_source_iwt_flux(void)
 {
     return
     "__kernel void iwt_flux(\n"
@@ -114,7 +114,7 @@ protected const char *ocl_get_source_iwt_flux(void)
  * Grund: Die O(N²)-Schleifen sind FP64-rechenbegrenzt, nicht bandbreiten-
  * begrenzt (siehe README.md, Abschnitt "Numerische Skalierung").
  */
-protected const char* ocl_get_source_iwt_precompute(void)
+const char* ocl_get_source_iwt_precompute(void)
 {
     return
     "__kernel void iwt_precompute(\n"
@@ -158,7 +158,7 @@ protected const char* ocl_get_source_iwt_precompute(void)
  * Grund: Die innere Schleife ist FP64-rechenbegrenzt, nicht bandbreiten-
  * begrenzt (siehe README.md, Abschnitt "Numerische Skalierung").
  */
-protected const char* ocl_get_source_iwt_q(void)
+const char* ocl_get_source_iwt_q(void)
 {
     return
     "__kernel void iwt_q(\n"
@@ -228,7 +228,7 @@ protected const char* ocl_get_source_iwt_q(void)
  * Grund: Konsistent mit README "Numerische Skalierung" – gamma_eff
  * wird in DT absorbiert; hier zusätzlich der Phasenanteil separat.
  */
-protected const char* ocl_get_source_iwt_update_info(void)
+const char* ocl_get_source_iwt_update_info(void)
 {
     return
     "__kernel void iwt_update_info(\n"
@@ -313,7 +313,7 @@ protected const char* ocl_get_source_iwt_update_info(void)
  * und Zeitschritt gemischt) garantiert die Unkorrelation über das Netzwerk,
  * ohne den sequenziellen Fisher-Yates-Shuffle der CPU-Version.
  */
-protected const char* ocl_get_source_iwt_fluctuations(void)
+const char* ocl_get_source_iwt_fluctuations(void)
 {
     return
     "__kernel void iwt_fluctuations(\n"
@@ -368,7 +368,7 @@ protected const char* ocl_get_source_iwt_fluctuations(void)
  * diskreten Zeit T > 0 (Anhang O). Sie ist die mathematische Manifestation
  * des bandbegrenzten Frequenzspektrums.
  */
-protected const char* ocl_get_source_iwt_apply_fluctuations(void)
+const char* ocl_get_source_iwt_apply_fluctuations(void)
 {
     return
     "__kernel void iwt_apply_fluctuations(\n"
@@ -408,7 +408,7 @@ protected const char* ocl_get_source_iwt_apply_fluctuations(void)
  * fraktalen Geometrie (Anhang R.5). Die Elementarladung e ist kein freier
  * Parameter, sondern emergiert aus der Raumstruktur (Anhang R.3).
  */
-protected const char* ocl_get_source_iwt_mass_charge(void)
+const char* ocl_get_source_iwt_mass_charge(void)
 {
     return
     "__kernel void iwt_mass_charge(\n"
@@ -483,7 +483,7 @@ protected const char* ocl_get_source_iwt_mass_charge(void)
  * an das Vakuum zurück. Dies schließt den Energiekreislauf und verhindert
  * den Wärmetod (Kap. 13).
  */
-protected const char* ocl_get_source_iwt_redshift_damping(void)
+const char* ocl_get_source_iwt_redshift_damping(void)
 {
     return
     "__kernel void iwt_redshift_damping(\n"
@@ -517,7 +517,7 @@ protected const char* ocl_get_source_iwt_redshift_damping(void)
  *   - die Anzahl nach counts_gpu
  * Ohne atomare Operationen, ohne skalare Division/Modulo (2D-Global-ID).
  */
-protected const char* ocl_get_source_iwt_wave_count_points(void)
+const char* ocl_get_source_iwt_wave_count_points(void)
 {
     return
     "__kernel void iwt_wave_count_points(\n"
@@ -615,7 +615,7 @@ protected const char* ocl_get_source_iwt_wave_count_points(void)
  * schreibt die Polylinien-Segmente an die vorberechnete Basis-Offset-Position.
  * Ohne atomare Operationen.
  */
-protected const char* ocl_get_source_iwt_wave_emit(void)
+const char* ocl_get_source_iwt_wave_emit(void)
 {
     return
     "__kernel void iwt_wave_emit(\n"
